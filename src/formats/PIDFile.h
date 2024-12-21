@@ -27,6 +27,7 @@ public:
     ~PIDFile() { delete[] data; }
     bool loadFromFile(const std::filesystem::path& filepath) override;
     bool load(std::istream& stream) override;
+    bool save(std::ostream& stream) override;
 
     const std::string& getName() const { return name; }
     const std::string& getWindowName() const { return windowName; }

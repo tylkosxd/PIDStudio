@@ -1,12 +1,11 @@
 #include "Claw.h"
 
-#include "../String.h"
 #include "../PIDStudio.h"
 #include "../formats/PIDPalette.h"
 
 #include "../assets/claw_game.pal.h"
 
-void initializeStatesPalettes(const std::shared_ptr<AssetLibrary::TreeNode>& statesDirectory) {
+void initializeStatesPalettes(const std::shared_ptr<AssetLibraryTreeNode>& statesDirectory) {
     static const char* attractScreensName[] = { "ATTRACT", "SCREENS", nullptr };
     auto attractScreensDirectory = statesDirectory->resolve(attractScreensName);
 
@@ -42,7 +41,7 @@ void initializeStatesPalettes(const std::shared_ptr<AssetLibrary::TreeNode>& sta
     bootyDirectory->palette = screensDirectory->children[0]->palette;
 }
 
-void Claw::initializeLibrary(const std::shared_ptr<AssetLibrary::TreeNode>& root) {
+void Claw::initializeLibrary(const std::shared_ptr<AssetLibraryTreeNode>& root) {
     SupportedGame::initializeLibrary(root);
 
     for (const auto& node : root->children) {

@@ -205,10 +205,6 @@ int PIDStudio::run(){
             assetLibraries.erase(std::find(assetLibraries.begin(), assetLibraries.end(), libraryToClose));
             libraryToClose.reset();
         }
-        // react to filesystem changes
-        for (auto const& library : assetLibraries) {
-            library->rebuildTreeIfRequired();
-        }
     }
 
     return 0;
@@ -314,11 +310,21 @@ void PIDStudio::preDockedWindows()
 
     if (shouldPrepareDockspace)
     {
-        shouldPrepareDockspace = false;
         ImGui::SetNextWindowDockID(dockspaceIdRightBottom, ImGuiDir_Down);
-        ImGui::DockBuilderFinish(dockspaceId);
     }
     libraryWindow();
+
+    if (shouldPrepareDockspace)
+    {
+        ImGui::SetNextWindowDockID(dockspaceIdRightBottom, ImGuiDir_Down);
+    }
+    projectsWindow();
+
+    if (shouldPrepareDockspace)
+    {
+        shouldPrepareDockspace = false;
+        ImGui::DockBuilderFinish(dockspaceId);
+    }
 }
 
 void PIDStudio::openedFilesWindows()
@@ -461,7 +467,21 @@ void PIDStudio::libraryWindow()
         }
     } else {
         for (const std::shared_ptr<AssetLibrary>& library : assetLibraries)
-            library->displayContent();
+            library->displayTree();
+    }
+
+    ImGui::End();
+}
+
+void PIDStudio::projectsWindow()
+{
+    ImGui::Begin(_("Projects"));
+
+    if (projects.empty()) {
+        ImGui::Text("Test");
+    } else {
+        for (const std::shared_ptr<Project>& project : projects)
+            project->displayTree();
     }
 
     ImGui::End();
@@ -478,7 +498,7 @@ void PIDStudio::openPidFileDialog()
         while (std::getline(stream, filePath, '|')) {
             std::filesystem::path path(filePath);
             if (!isFileAlreadyOpen(path)) {
-                std::shared_ptr<AssetLibrary::TreeNode> libraryFileNode;
+                std::shared_ptr<AssetLibraryTreeNode> libraryFileNode;
                 for (auto& library : assetLibraries) {
                     if (library->hasFilepath(path, libraryFileNode)) {
                         openLibraryFile(library, libraryFileNode);
@@ -527,8 +547,12 @@ void PIDStudio::addLibraryDialog()
     tinyfd_messageBox(_("Game not recognized"), message.c_str(), "ok", "error", 1);
 }
 
-void PIDStudio::libraryEntryContextMenu(const std::shared_ptr<AssetLibrary>& library, const std::shared_ptr<AssetLibrary::TreeNode>& node, bool isLeaf, bool isRoot)
-{
+void PIDStudio::libraryEntryContextMenu(
+    const std::shared_ptr<AssetLibrary>& library,
+    const std::shared_ptr<AssetLibraryTreeNode>& node,
+    bool isLeaf,
+    bool isRoot
+) {
     if (isLeaf) {
         saveAsContextMenu();
     } else {
@@ -552,7 +576,7 @@ void PIDStudio::addLibrary(std::filesystem::path& path, const std::shared_ptr<Su
     for (const auto& file : openedFiles) {
         if (file->getPalette()) continue;
 
-        std::shared_ptr<AssetLibrary::TreeNode> outFoundNode;
+        std::shared_ptr<AssetLibraryTreeNode> outFoundNode;
         if (assetLibrary->hasFilepath(file->getPath(), outFoundNode)) {
             const auto& palette = assetLibrary->inferPalette(outFoundNode);
 
@@ -582,7 +606,9 @@ void PIDStudio::closeContextMenu()
 
 void PIDStudio::saveAsContextMenu()
 {
-    if (ImGui::MenuItemEx(_("Save as..."), nullptr, nullptr, false, false)) { /* Do stuff */ }
+    if (ImGui::MenuItem(_("Save as..."))) {
+        saveAsFile();
+    }
 }
 
 void PIDStudio::keepLibraryFileOpened()
@@ -614,8 +640,11 @@ void PIDStudio::closeAllFiles()
     }
 }
 
-void PIDStudio::openLibraryFile(const std::shared_ptr<AssetLibrary>& library, const std::shared_ptr<AssetLibrary::TreeNode>& node, bool inSeparateWindow)
-{
+void PIDStudio::openLibraryFile(
+    const std::shared_ptr<AssetLibrary>& library,
+    const std::shared_ptr<AssetLibraryTreeNode>& node,
+    bool inSeparateWindow
+) {
     PIDFile* openedFile;
     if (isFileAlreadyOpen(node->path, &openedFile)) {
         bringFocusTo = openedFile;
@@ -655,9 +684,11 @@ bool PIDStudio::isFileAlreadyOpen(const std::filesystem::path& path, PIDFile** o
     return false;
 }
 
-void PIDStudio::openAllFiles(const std::shared_ptr<AssetLibrary>& library, const std::shared_ptr<AssetLibrary::TreeNode>& selectedNode)
-{
-    std::stack<std::shared_ptr<AssetLibrary::TreeNode>> stack;
+void PIDStudio::openAllFiles(
+    const std::shared_ptr<AssetLibrary>& library,
+    const std::shared_ptr<AssetLibraryTreeNode>& selectedNode
+) {
+    std::stack<std::shared_ptr<AssetLibraryTreeNode>> stack;
     stack.emplace(selectedNode);
 
     while(!stack.empty()) {
@@ -697,4 +728,12 @@ void PIDStudio::savePaletteToFile() {
     if (!selectedFile) return;
 
     (currentPalette ? currentPalette : defaultPalette)->saveToFile(selectedFile);
+}
+
+void PIDStudio::saveAsFile() {
+    const char* selectedFile = saveFileDialog<pidFilter>(_("Image Files"));
+
+    if (!selectedFile || !currentlyFocusedFile) return;
+
+    currentlyFocusedFile->saveToFile(selectedFile);
 }

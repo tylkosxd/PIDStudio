@@ -55,7 +55,7 @@ bool PIDFile::load(std::istream& stream) {
     };
 
     auto readCompressedPixels = [&]() {
-        while (outPtr < endPtr) {
+        while (outPtr < endPtr && stream.good()) {
             stream > currentByte;
             if (currentByte > 128) {
                 length = currentByte - 128;
@@ -68,7 +68,7 @@ bool PIDFile::load(std::istream& stream) {
     };
 
     auto readUncompressedPixels = [&]() {
-        while (outPtr < endPtr) {
+        while (outPtr < endPtr && stream.good()) {
             stream > currentByte;
             if (currentByte > 192) {
                 length = currentByte - 192;
@@ -84,6 +84,85 @@ bool PIDFile::load(std::istream& stream) {
         readCompressedPixels();
     } else {
         readUncompressedPixels();
+    }
+
+    return true;
+}
+
+bool PIDFile::save(std::ostream &stream) {
+    stream < magic < flags < width < height < offsetX < offsetY < unknown;
+
+    uint8_t *outPtr = data;
+    uint8_t *endPtr = outPtr + width * height;
+    uint8_t *lastSegPtr = outPtr;
+
+    uint8_t singleByte;
+    int length = 0;
+    bool isZero;
+
+    auto writeCompressedSegment = [&]() {
+        if (isZero) {
+            stream < (uint8_t) (outPtr - lastSegPtr + 128);
+        } else {
+            stream < (uint8_t) (outPtr - lastSegPtr);
+            stream.write((const char*)lastSegPtr, outPtr - lastSegPtr);
+        }
+    };
+    auto writeUncompressedSegment = [&]() {
+        if (length > 0) {
+            stream < (uint8_t) (length + 192 + 1);
+            length = 0;
+        } else if (singleByte > 192) {
+            stream < (uint8_t) (192 + 1);
+        }
+        stream < singleByte;
+    };
+
+    auto writeCompressedPixels = [&]() {
+        if (outPtr >= endPtr) {
+            return;
+        }
+
+        singleByte = *outPtr;
+        isZero = singleByte == 0;
+
+        while (++outPtr < endPtr) {
+            if (isZero != (*outPtr == 0)) {
+                writeCompressedSegment();
+                lastSegPtr = outPtr;
+                isZero = !isZero;
+            } else if (outPtr - lastSegPtr == 127) {
+                writeCompressedSegment();
+                lastSegPtr = outPtr;
+            }
+
+            singleByte = *outPtr;
+        }
+        writeCompressedSegment();
+    };
+
+    auto writeUncompressedPixels = [&]() {
+        if (outPtr >= endPtr) {
+            return;
+        }
+
+        singleByte = *outPtr;
+        while (++outPtr < endPtr) {
+            if (singleByte == *outPtr) {
+                length++;
+            } else {
+                writeUncompressedSegment();
+            }
+
+            singleByte = *outPtr;
+        }
+        writeUncompressedSegment();
+    };
+
+    if (flags & Flag_Compression) {
+        writeCompressedPixels();
+    } else {
+        writeUncompressedPixels();
     }
 
     return true;

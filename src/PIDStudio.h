@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AssetLibrary.h"
+#include "Project.h"
 
 #include <imgui.h>
 #include <SFML/Graphics/RenderWindow.hpp>
@@ -25,8 +26,17 @@ public:
 	~PIDStudio();
 
 	int run();
-	void openLibraryFile(const std::shared_ptr<AssetLibrary>& library, const std::shared_ptr<AssetLibrary::TreeNode>& node, bool inSeparateWindow = false);
-	void libraryEntryContextMenu(const std::shared_ptr<AssetLibrary>& library, const std::shared_ptr<AssetLibrary::TreeNode>& node, bool isLeaf, bool isRoot);
+	void openLibraryFile(
+        const std::shared_ptr<AssetLibrary>& library,
+        const std::shared_ptr<AssetLibraryTreeNode>& node,
+        bool inSeparateWindow = false
+    );
+	void libraryEntryContextMenu(
+        const std::shared_ptr<AssetLibrary>& library,
+        const std::shared_ptr<AssetLibraryTreeNode>& node,
+        bool isLeaf,
+        bool isRoot
+    );
 	std::shared_ptr<PIDPalette> getDefaultPalette() { return defaultPalette; }
 
 private:
@@ -36,6 +46,7 @@ private:
 	mINI::INIStructure settings;
 	sf::RenderWindow mainWindow;
 	std::vector<std::shared_ptr<AssetLibrary>> assetLibraries;
+	std::vector<std::shared_ptr<Project>> projects;
 
 	std::vector<std::shared_ptr<PIDFile>> openedFiles;
 	std::shared_ptr<PIDFile> openedLibraryFile;
@@ -60,6 +71,7 @@ private:
 	void paletteWindow();
 	void metadataWindow();
 	void libraryWindow();
+    void projectsWindow();
 
 	void closeContextMenu();
 	void saveAsContextMenu();
@@ -75,7 +87,8 @@ private:
 	void addLibraryDialog();
 	void addLibrary(std::filesystem::path& path, const std::shared_ptr<SupportedGame>& game);
 	bool isFileAlreadyOpen(const std::filesystem::path& path, PIDFile** outFilePtr = nullptr);
-	void openAllFiles(const std::shared_ptr<AssetLibrary>& library, const std::shared_ptr<AssetLibrary::TreeNode>& node);
+	void openAllFiles(const std::shared_ptr<AssetLibrary>& library, const std::shared_ptr<AssetLibraryTreeNode>& node);
 	void loadPaletteFromFile();
 	void savePaletteToFile();
+	void saveAsFile();
 };

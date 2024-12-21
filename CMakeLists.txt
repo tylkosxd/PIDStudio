@@ -12,7 +12,6 @@ set(
     src/PIDStudio.h
     src/File.cpp
     src/File.h
-    src/Filters.tpp
     src/Filters.h
     src/String.cpp
     src/String.h
@@ -24,8 +23,11 @@ set(
     src/formats/PIDFile.h
     src/formats/PIDPalette.cpp
     src/formats/PIDPalette.h
+    src/FilesystemWatcher.h
     src/AssetLibrary.cpp
     src/AssetLibrary.h
+    src/Project.cpp
+    src/Project.h
     src/SupportedGame.cpp
     src/SupportedGame.h
     src/games/Claw.cpp
