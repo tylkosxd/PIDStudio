@@ -99,6 +99,7 @@ bool PIDFile::save(std::ostream &stream) {
     uint8_t singleByte;
     int length = 0;
     bool isZero;
+    int lengthCounter = 0;
 
     auto writeCompressedSegment = [&]() {
         if (isZero) {
@@ -108,6 +109,7 @@ bool PIDFile::save(std::ostream &stream) {
             stream.write((const char*)lastSegPtr, outPtr - lastSegPtr);
         }
     };
+
     auto writeUncompressedSegment = [&]() {
         if (length > 0) {
             stream < (uint8_t) (length + 192 + 1);
@@ -119,19 +121,19 @@ bool PIDFile::save(std::ostream &stream) {
     };
 
     auto writeCompressedPixels = [&]() {
-        if (outPtr >= endPtr) {
-            return;
-        }
+        if (outPtr >= endPtr) { return; }
 
         singleByte = *outPtr;
         isZero = singleByte == 0;
 
         while (++outPtr < endPtr) {
-            if (isZero != (*outPtr == 0)) {
+            lengthCounter++;
+            lengthCounter = lengthCounter == width + 1 ? 1 : lengthCounter;
+            if (isZero != (*outPtr == 0) || lengthCounter == width) {
                 writeCompressedSegment();
                 lastSegPtr = outPtr;
-                isZero = !isZero;
-            } else if (outPtr - lastSegPtr == 127) {
+                if (isZero != (*outPtr == 0)) { isZero = !isZero; };
+            } else if (outPtr - lastSegPtr == 127 || lengthCounter == width) {
                 writeCompressedSegment();
                 lastSegPtr = outPtr;
             }
@@ -142,9 +144,7 @@ bool PIDFile::save(std::ostream &stream) {
     };
 
     auto writeUncompressedPixels = [&]() {
-        if (outPtr >= endPtr) {
-            return;
-        }
+        if (outPtr >= endPtr) { return; }
 
         singleByte = *outPtr;
         while (++outPtr < endPtr) {
