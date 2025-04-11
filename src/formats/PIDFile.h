@@ -25,6 +25,7 @@ class PIDFile : public File {
 public:
     explicit PIDFile(PIDStudio* app) : app(app) {};
     ~PIDFile() { delete[] data; }
+
     bool loadFromFile(const std::filesystem::path& filepath) override;
     bool load(std::istream& stream) override;
     bool save(std::ostream& stream) override;
@@ -33,20 +34,30 @@ public:
     const std::string& getWindowName() const { return windowName; }
     const std::filesystem::path& getPath() const { return path; }
     const sf::Texture& getTexture();
+
+    int getMagicNumber() const { return magic; }
     int getWidth() const { return width; }
     int getHeight() const { return height; }
     std::shared_ptr<PIDPalette> getPalette() const { return palette; }
     void setPalette(const std::shared_ptr<PIDPalette>& p) { palette = p; requiresTextureUpdate = true; }
-    int getOffsetX() const { return offsetX; };
-    int getOffsetY() const { return offsetY; };
-    int* getUserData() { return unknown; };
-    FLAGS getFlags() { return flags; };
-    std::string getFlagsDescription();
+    int getOffsetX() const { return offsetX; }
+    void setOffsetX(int x) { offsetX = x; }
+    int getOffsetY() const { return offsetY; }
+    void setOffsetY(int y) { offsetY = y; }
+    int* getUserData() { return userdata; }
+    FLAGS getFlags() { return flags; }
+    int getFlagIntValue(std::string flagName);
+    void setFlag(std::string flagName, bool state);
+    bool getFlag(std::string flagName);
+
+    void resetTexture() { requiresTextureUpdate = true; }
+    bool isModified();
 
 private:
     PIDStudio* app;
-    bool isModified = false;
-    int width, height, magic, offsetX, offsetY, unknown[2];
+    int width, height, magic, offsetX, offsetY, userdata[2];
+    int originalOffsetX, originalOffsetY;
+    FLAGS originalFlags;
     FLAGS flags;
     uint8_t* data = nullptr;
     std::shared_ptr<PIDPalette> palette;

@@ -69,7 +69,9 @@ private:
 	void toolBar();
 	void preDockedWindows();
 	void paletteWindow();
+	void offsetsWindow();
 	void metadataWindow();
+	void flagsWindow();
 	void libraryWindow();
     void projectsWindow();
 
@@ -91,4 +93,17 @@ private:
 	void loadPaletteFromFile();
 	void savePaletteToFile();
 	void saveAsFile();
+	void initFlagsCheckboxes();
+	void initOffsetsInputs();
+	void saveCurrentFile();
+	bool checkboxTransparencyFlag[1];
+	bool checkboxVideoMemoryFlag[1];
+	bool checkboxSystemMemoryFlag[1];
+	bool checkboxMirrorFlag[1];
+	bool checkboxInvertFlag[1];
+	bool checkboxCompressionFlag[1];
+	bool checkboxLightsFlag[1];
+	bool checkboxOwnPaletteFlag[1];
+	int inputIntOffsetX[1];
+	int inputIntOffsetY[1];
 };

@@ -16,7 +16,11 @@ bool PIDFile::loadFromFile(const std::filesystem::path& filepath) {
 }
 
 bool PIDFile::load(std::istream& stream) {
-    stream > magic > flags > width > height > offsetX > offsetY > unknown;
+    stream > magic > flags > width > height > offsetX > offsetY > userdata;
+
+    originalFlags = flags;
+    originalOffsetX = offsetX;
+    originalOffsetY = offsetY;
 
 #ifdef DEBUG
     if (magic != 10) {
@@ -86,11 +90,15 @@ bool PIDFile::load(std::istream& stream) {
         readUncompressedPixels();
     }
 
+    if (flags & Flag_OwnPalette && !(flags & Flag_Lights)) {
+        palette -> load(stream);
+    }
+
     return true;
 }
 
 bool PIDFile::save(std::ostream &stream) {
-    stream < magic < flags < width < height < offsetX < offsetY < unknown;
+    stream < magic < flags < width < height < offsetX < offsetY < userdata;
 
     uint8_t *outPtr = data;
     uint8_t *endPtr = outPtr + width * height;
@@ -99,6 +107,7 @@ bool PIDFile::save(std::ostream &stream) {
     uint8_t singleByte;
     int length = 0;
     bool isZero;
+    int lengthCounter = 0;
 
     auto writeCompressedSegment = [&]() {
         if (isZero) {
@@ -108,6 +117,7 @@ bool PIDFile::save(std::ostream &stream) {
             stream.write((const char*)lastSegPtr, outPtr - lastSegPtr);
         }
     };
+
     auto writeUncompressedSegment = [&]() {
         if (length > 0) {
             stream < (uint8_t) (length + 192 + 1);
@@ -119,32 +129,29 @@ bool PIDFile::save(std::ostream &stream) {
     };
 
     auto writeCompressedPixels = [&]() {
-        if (outPtr >= endPtr) {
-            return;
-        }
+        if (outPtr >= endPtr) { return; }
 
         singleByte = *outPtr;
         isZero = singleByte == 0;
 
         while (++outPtr < endPtr) {
-            if (isZero != (*outPtr == 0)) {
+            lengthCounter++;
+            if (isZero != (*outPtr == 0) || lengthCounter == width) {
                 writeCompressedSegment();
                 lastSegPtr = outPtr;
-                isZero = !isZero;
-            } else if (outPtr - lastSegPtr == 127) {
+                if (isZero != (*outPtr == 0)) { isZero = !isZero; };
+            } else if (outPtr - lastSegPtr == 127 || lengthCounter == width) {
                 writeCompressedSegment();
                 lastSegPtr = outPtr;
             }
-
+            if (lengthCounter == width) {lengthCounter = 0;};
             singleByte = *outPtr;
         }
         writeCompressedSegment();
     };
 
     auto writeUncompressedPixels = [&]() {
-        if (outPtr >= endPtr) {
-            return;
-        }
+        if (outPtr >= endPtr) { return; }
 
         singleByte = *outPtr;
         while (++outPtr < endPtr) {
@@ -165,13 +172,20 @@ bool PIDFile::save(std::ostream &stream) {
         writeUncompressedPixels();
     }
 
+    if (flags & Flag_OwnPalette && !(flags & Flag_Lights)) {
+        palette -> save(stream);
+    }
+
+    originalFlags = flags;
+    originalOffsetX = offsetX;
+    originalOffsetY = offsetY;
+
     return true;
 }
 
-const sf::Texture& PIDFile::getTexture()
-{
+const sf::Texture& PIDFile::getTexture() {
     if (requiresTextureUpdate) {
-        const std::shared_ptr<PIDPalette>& imagePalette = palette ? palette : app->getDefaultPalette();
+        const std::shared_ptr<PIDPalette>& imagePalette = (palette and not (flags & Flag_Lights)) ? palette : app->getDefaultPalette();
 
         sf::Image img;
         img.create(width, height);
@@ -191,18 +205,30 @@ const sf::Texture& PIDFile::getTexture()
     return texture;
 }
 
-std::string PIDFile::getFlagsDescription()
-{
-    std::string flagsDescription;
+int PIDFile::getFlagIntValue(std::string flagName) {
+    if (flagName == "Transparency") { return (int)Flag_Transparency;};
+    if (flagName == "VideoMemory") { return (int)Flag_VideoMemory;};
+    if (flagName == "SystemMemory") { return (int)Flag_SystemMemory;};
+    if (flagName == "Mirror") { return (int)Flag_Mirror;};
+    if (flagName == "Invert") { return (int)Flag_Invert;};
+    if (flagName == "Compression") { return (int)Flag_Compression;};
+    if (flagName == "Lights") { return (int)Flag_Lights;};
+    if (flagName == "OwnPalette") { return (int)Flag_OwnPalette;};
+    return 0;
+}
 
-    if (flags & Flag_Transparency) flagsDescription += "Flag_Transparency\n";
-    if (flags & Flag_VideoMemory) flagsDescription += "Flag_VideoMemory\n";
-    if (flags & Flag_SystemMemory) flagsDescription += "Flag_SystemMemory\n";
-    if (flags & Flag_Mirror) flagsDescription += "Flag_Mirror\n";
-    if (flags & Flag_Invert) flagsDescription += "Flag_Invert\n";
-    if (flags & Flag_Compression) flagsDescription += "Flag_Compression\n";
-    if (flags & Flag_Lights) flagsDescription += "Flag_Lights\n";
-    if (flags & Flag_OwnPalette) flagsDescription += "Flag_OwnPalette\n";
+void PIDFile::setFlag(std::string flagName, bool state) {
+    if (state) {
+        flags = (FLAGS)(flags | (getFlagIntValue(flagName)));
+    } else {
+        flags = (FLAGS)(flags & ~getFlagIntValue(flagName));
+    }
+}
 
-    return flagsDescription;
+bool PIDFile::getFlag(std::string flagName) {
+    return (bool)(flags & getFlagIntValue(flagName));
+}
+
+bool PIDFile::isModified() {
+    return (flags != originalFlags || offsetX != originalOffsetX || offsetY != originalOffsetY);
 }
