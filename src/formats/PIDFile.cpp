@@ -118,6 +118,7 @@ bool PIDFile::save(std::ostream &stream) {
         }
     };
 
+
     auto writeUncompressedSegment = [&]() {
         if (length > 0) {
             stream < (uint8_t) (length + 192 + 1);
