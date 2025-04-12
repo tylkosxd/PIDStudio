@@ -90,11 +90,17 @@ bool PIDFile::load(std::istream& stream) {
         readUncompressedPixels();
     }
 
-    if (flags & Flag_OwnPalette && !(flags & Flag_Lights)) {
-        palette -> load(stream);
-    }
-
     return true;
+}
+
+bool PIDFile::saveToFile(const std::filesystem::path& filepath) {
+    std::filesystem::path extension = filepath.extension();
+    if (extension == ".bmp" || extension == ".png") {
+        return image.saveToFile(filepath.string());
+    } else if (extension == ".pid") {
+        return File::saveToFile(filepath);
+    }
+    return false;
 }
 
 bool PIDFile::save(std::ostream &stream) {
@@ -117,7 +123,6 @@ bool PIDFile::save(std::ostream &stream) {
             stream.write((const char*)lastSegPtr, outPtr - lastSegPtr);
         }
     };
-
 
     auto writeUncompressedSegment = [&]() {
         if (length > 0) {
@@ -192,8 +197,7 @@ const sf::Texture& PIDFile::getTexture() {
         img.create(width, height);
 
         for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++)
-            {
+            for (int x = 0; x < width; x++) {
                 img.setPixel(x, y, imagePalette->getColor(data[y * width + x]));
             }
         }
@@ -201,6 +205,7 @@ const sf::Texture& PIDFile::getTexture() {
         texture.loadFromImage(img);
         texture.setSmooth(true);
 
+        image = img;
         requiresTextureUpdate = false;
     }
     return texture;

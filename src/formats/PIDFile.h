@@ -28,6 +28,7 @@ public:
 
     bool loadFromFile(const std::filesystem::path& filepath) override;
     bool load(std::istream& stream) override;
+    bool saveToFile(const std::filesystem::path& filepath) override;
     bool save(std::ostream& stream) override;
 
     const std::string& getName() const { return name; }
@@ -64,6 +65,7 @@ private:
     std::string name;
     std::string windowName;
     std::filesystem::path path;
+    sf::Image image;
     sf::Texture texture;
     bool requiresTextureUpdate = true;
 };

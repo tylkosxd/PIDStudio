@@ -42,7 +42,9 @@ inline const char* openFileDialog(const char* filterName) {
     return tinyfd_openFileDialog(
         isMultiSelect ? _("Open file(s)") : _("Open file"),
         nullptr,
-        sizeof...(filters), filterPatterns.data(), std::format("{} ({})", filterName, filterPatternsString.data()).c_str(),
+        sizeof...(filters),
+        filterPatterns.data(),
+        std::format("{} ({})", filterName, filterPatternsString.data()).c_str(),
         isMultiSelect
     );
 }
@@ -54,7 +56,9 @@ inline const char* saveFileDialog(const char* filterName) {
     return tinyfd_saveFileDialog(
         _("Save file"),
         nullptr,
-        sizeof...(filters), filterPatterns.data(), std::format("{} ({})", filterName, filterPatternsString.data()).c_str()
+        sizeof...(filters), 
+        filterPatterns.data(), 
+        std::format("{} ({})", filterName, filterPatternsString.data()).c_str()
     );
 }
 
@@ -845,7 +849,7 @@ void PIDStudio::savePaletteToFile() {
 }
 
 void PIDStudio::saveAsFile() {
-    const char* selectedFile = saveFileDialog<pidFilter>(_("Image Files"));
+    const char* selectedFile = saveFileDialog<pidFilter, bmpFilter, pngFilter>(_("Image Files"));
 
     if (!selectedFile || !currentlyFocusedFile) return;
 
