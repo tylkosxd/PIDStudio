@@ -143,7 +143,7 @@ PIDStudio::~PIDStudio(){
 	mainWindow.close();
 }
 
-int PIDStudio::run(){
+int PIDStudio::run() {
 	sf::Clock deltaClock{};
     sf::Event event{};
 
@@ -167,6 +167,10 @@ int PIDStudio::run(){
                     case sf::Keyboard::W:
                         if (currentlyFocusedFile)
                             filesToClose.insert(currentlyFocusedFile);
+                        break;
+                    case sf::Keyboard::S:
+                        if (currentlyFocusedFile && currentlyFocusedFile -> isModified())
+                            saveCurrentFile();
                         break;
                     default:
                         break;
@@ -214,12 +218,9 @@ int PIDStudio::run(){
     return 0;
 }
 
-void PIDStudio::menuBar()
-{
-    if (ImGui::BeginMainMenuBar())
-    {
-        if (ImGui::BeginMenu(_("File")))
-        {
+void PIDStudio::menuBar() {
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu(_("File"))) {
             if (ImGui::BeginMenu(_("New..."))) {
                 if (ImGui::MenuItemEx(_("Project"), ICON_LC_FOLDER_PLUS, "Ctrl+Shift+N", false, false)) { /* TODO */ }
                 if (ImGui::MenuItemEx(_("File"), ICON_LC_IMAGE_PLUS, "Ctrl+N", false, false)) { /* TODO */ }
@@ -227,7 +228,9 @@ void PIDStudio::menuBar()
             }
             if (ImGui::BeginMenu(_("Open..."))) {
                 if (ImGui::MenuItemEx(_("Project"), ICON_LC_FOLDER_UP, "Ctrl+Shift+O", false, false)) { /* TODO */ }
-                if (ImGui::MenuItemEx(_("File"), ICON_LC_IMAGE_UP, "Ctrl+O")) { openPidFileDialog(); }
+                if (ImGui::MenuItemEx(_("File"), ICON_LC_IMAGE_UP, "Ctrl+O")) { 
+                    openPidFileDialog(); 
+                }
                 ImGui::EndMenu();
             }
 
@@ -242,7 +245,7 @@ void PIDStudio::menuBar()
                 saveCurrentFile();
             }
             
-            saveAsContextMenu();
+            if (ImGui::MenuItem(_("Save as..."))) saveCurrentFileAs();
             if (ImGui::MenuItemEx(_("Save all"), ICON_LC_SAVE_ALL, "Ctrl+Shift+S", false, false)) { /* TODO */ }
 
             ImGui::Separator();
@@ -295,8 +298,7 @@ void PIDStudio::preDockedWindows()
     static bool shouldPrepareDockspace = true; // pre-dock windows on launch, but allow user to move them freely later
     dockspaceId = ImGui::DockSpace(ImGui::GetID(APPLICATION_NAME));
 
-    if (shouldPrepareDockspace)
-    {
+    if (shouldPrepareDockspace) {
         ImGui::DockBuilderRemoveNode(dockspaceId);
         ImGui::DockBuilderAddNode(
         dockspaceId,
@@ -312,38 +314,32 @@ void PIDStudio::preDockedWindows()
     }
     paletteWindow();
 
-    if (shouldPrepareDockspace)
-    {
+    if (shouldPrepareDockspace) {
         ImGui::SetNextWindowDockID(dockspaceIdRightTop, ImGuiDir_Up);
     }
     offsetsWindow();
 
-    if (shouldPrepareDockspace)
-    {
+    if (shouldPrepareDockspace) {
         ImGui::SetNextWindowDockID(dockspaceIdRightTop, ImGuiDir_Up);
     }
     flagsWindow();
 
-    if (shouldPrepareDockspace)
-    {
+    if (shouldPrepareDockspace) {
         ImGui::SetNextWindowDockID(dockspaceIdRightTop, ImGuiDir_Up);
     }
     metadataWindow();
 
-    if (shouldPrepareDockspace)
-    {
+    if (shouldPrepareDockspace) {
         ImGui::SetNextWindowDockID(dockspaceIdRightBottom, ImGuiDir_Down);
     }
     libraryWindow();
 
-    if (shouldPrepareDockspace)
-    {
+    if (shouldPrepareDockspace) {
         ImGui::SetNextWindowDockID(dockspaceIdRightBottom, ImGuiDir_Down);
     }
     projectsWindow();
 
-    if (shouldPrepareDockspace)
-    {
+    if (shouldPrepareDockspace) {
         shouldPrepareDockspace = false;
         ImGui::DockBuilderFinish(dockspaceId);
     }
@@ -381,24 +377,22 @@ void PIDStudio::openedFilesWindows() {
     }
 }
 
-void PIDStudio::initFlagsCheckboxes() {
-    if (currentlyFocusedFile) {
-        checkboxTransparencyFlag[0] = currentlyFocusedFile -> getFlag("Transparency");
-        checkboxVideoMemoryFlag[0] = currentlyFocusedFile -> getFlag("VideoMemory");
-        checkboxSystemMemoryFlag[0] = currentlyFocusedFile -> getFlag("SystemMemory");
-        checkboxMirrorFlag[0] = currentlyFocusedFile -> getFlag("Mirror");
-        checkboxInvertFlag[0] = currentlyFocusedFile -> getFlag("Invert");
-        checkboxCompressionFlag[0] = currentlyFocusedFile -> getFlag("Compression");
-        checkboxLightsFlag[0] = currentlyFocusedFile -> getFlag("Lights");
-        checkboxOwnPaletteFlag[0] = currentlyFocusedFile -> getFlag("OwnPalette");
-    }
+void PIDStudio::setFlagsCheckboxes() {
+    if (!currentlyFocusedFile) { return; }
+    checkboxTransparencyFlag[0] = currentlyFocusedFile -> getFlag("Transparency");
+    checkboxVideoMemoryFlag[0] = currentlyFocusedFile -> getFlag("VideoMemory");
+    checkboxSystemMemoryFlag[0] = currentlyFocusedFile -> getFlag("SystemMemory");
+    checkboxMirrorFlag[0] = currentlyFocusedFile -> getFlag("Mirror");
+    checkboxInvertFlag[0] = currentlyFocusedFile -> getFlag("Invert");
+    checkboxCompressionFlag[0] = currentlyFocusedFile -> getFlag("Compression");
+    checkboxLightsFlag[0] = currentlyFocusedFile -> getFlag("Lights");
+    checkboxOwnPaletteFlag[0] = currentlyFocusedFile -> getFlag("OwnPalette");
 }
 
-void PIDStudio::initOffsetsInputs() {
-    if (currentlyFocusedFile) {
-        inputIntOffsetX[0] = currentlyFocusedFile->getOffsetX();
-        inputIntOffsetY[0] = currentlyFocusedFile->getOffsetY();
-    }
+void PIDStudio::setOffsetsInputs() {
+    if (!currentlyFocusedFile) { return; }
+    inputIntOffsetX[0] = currentlyFocusedFile->getOffsetX();
+    inputIntOffsetY[0] = currentlyFocusedFile->getOffsetY();
 }
 
 PIDStudio::OPENED_FILE_WINDOW_RESULT PIDStudio::openedFileWindow(const std::shared_ptr<PIDFile>& file)
@@ -436,21 +430,21 @@ PIDStudio::OPENED_FILE_WINDOW_RESULT PIDStudio::openedFileWindow(const std::shar
             bringFocusTo = nullptr;
             currentPalette = file->getPalette();
             currentlyFocusedFile = file;
-            initFlagsCheckboxes();
-            initOffsetsInputs();
         }
     }
+
+    setFlagsCheckboxes();
+    setOffsetsInputs();
 
     return !didNotCloseWindow ? CLOSE : didClickKeepLibraryFileOpen ? KEEP_OPEN : NONE;
 }
 
 void PIDStudio::paletteWindow() {
     if (ImGui::Begin(_("Palette"))) {
-        std::shared_ptr<PIDPalette> palette;
-        if (currentlyFocusedFile and currentPalette and not (currentlyFocusedFile -> getFlag("Lights"))) {
+        std::shared_ptr<PIDPalette> palette = defaultPalette;
+        bool hasLightsFlag = currentlyFocusedFile && currentlyFocusedFile -> getFlag("Lights");
+        if (currentPalette && !(hasLightsFlag)) {
             palette = currentPalette;
-        } else {
-            palette = defaultPalette;
         }
         ImGui::CenteredImage(palette->getTexture());
 
@@ -664,13 +658,32 @@ void PIDStudio::libraryEntryContextMenu(
     bool isRoot
 ) {
     if (isLeaf) {
-        saveAsContextMenu();
+        if (ImGui::MenuItem(_("Save as..."))) {
+            saveNodeFileAs(library, node);
+        }
     } else {
         if (isRoot) {
             if (ImGui::MenuItem(_("Remove from library"))) { libraryToClose = library; }
             ImGui::Separator();
+        } else {
+            if (ImGui::MenuItem(_("Open all"))) { 
+                forEachInLibraryNode(library, node, "open");
+            }
+            ImGui::Separator();
         }
-        if (ImGui::MenuItem(_("Open all"))) { openAllFiles(library, node); }
+        if (ImGui::BeginMenu(_("Save all as..."))) {
+            if (ImGui::MenuItem(_("PID"))) {
+                saveAllFilesAs(library, node, ".pid");
+            }
+            if (ImGui::MenuItem(_("Compressed PID"))) {
+                saveAllFilesAs(library, node, ".pid", true);
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem(_("PNG"))) {
+                saveAllFilesAs(library, node, ".png");
+            }
+            ImGui::EndMenu();
+        }
     }
 }
 
@@ -712,12 +725,6 @@ void PIDStudio::closeContextMenu() {
     if (ImGui::MenuItem(_("Close all"), "Ctrl+Shift+W", false, isAnyTabOpen)) { closeAllFiles(); }
 }
 
-void PIDStudio::saveAsContextMenu() {
-    if (ImGui::MenuItem(_("Save as..."))) {
-        saveAsFile();
-    }
-}
-
 void PIDStudio::saveCurrentFile() {
     currentlyFocusedFile -> saveToFile(currentlyFocusedFile -> getPath());
 }
@@ -730,13 +737,7 @@ void PIDStudio::keepLibraryFileOpened() {
 
 void PIDStudio::closeFile(const std::shared_ptr<PIDFile>& file) {
     if (file -> isModified()) {
-        if (tinyfd_messageBox(
-            _("Save"),
-            _("Save the file before closing?"),
-            "yesno",
-            "question",
-            1
-        ) == 1) { 
+        if (tinyfd_messageBox(_("Save"), _("Save the file before closing?"), "yesno", "question", 1) == 1) { 
             file -> saveToFile(file -> getPath());
         }
     }
@@ -789,6 +790,17 @@ void PIDStudio::openLibraryFile(
     }
 }
 
+std::shared_ptr<PIDFile> PIDStudio::openLibraryFileinBackground(
+    const std::shared_ptr<AssetLibrary>& library,
+    const std::shared_ptr<AssetLibraryTreeNode>& node
+) {
+    auto file = std::make_shared<PIDFile>(this);
+    file -> loadFromFile(node -> path);
+    auto palette = library -> inferPalette(node);
+    if (palette) { file -> setPalette(palette); }
+    return file;
+}
+
 bool PIDStudio::isFileAlreadyOpen(const std::filesystem::path& path, PIDFile** outFilePtr) {
     for (auto& file : openedFiles) {
         if (file->getPath() == path) {
@@ -802,23 +814,54 @@ bool PIDStudio::isFileAlreadyOpen(const std::filesystem::path& path, PIDFile** o
     return false;
 }
 
-void PIDStudio::openAllFiles(
+void PIDStudio::forEachInLibraryNode(
     const std::shared_ptr<AssetLibrary>& library,
-    const std::shared_ptr<AssetLibraryTreeNode>& selectedNode
+    const std::shared_ptr<AssetLibraryTreeNode>& selectedNode,
+    const char* action, /* "open", "saveAs"*/
+    const char* param1, /* file format for "saveAs"*/
+    const char* param2, /* folder path for "saveAs"*/
+    bool param3, /* true for compressed PIDs*/
+    size_t basePathLength
 ) {
-    std::stack<std::shared_ptr<AssetLibraryTreeNode>> stack;
-    stack.emplace(selectedNode);
+    namespace fs = std::filesystem;
 
-    while(!stack.empty()) {
-        const auto node = stack.top();
-        stack.pop();
+    bool workingWithFilesystem = action == "saveAs";
 
-        for (const auto &entry: node->children) {
-            if (entry->path.empty()) {
-                stack.emplace(entry);
-            } else {
-                openLibraryFile(library, entry, true);
+    if (workingWithFilesystem && basePathLength == 0) {
+        std::string basePath = (selectedNode -> path).string();
+        basePathLength = (selectedNode -> path).string().length();
+    }
+    
+    for (const auto &entry: selectedNode->children) {
+
+        if (entry->path.empty()) { return; }
+
+        if (fs::is_directory(entry -> path) && !(((fs::path)(entry -> name)).has_extension())) {
+            /* recursion */
+            if (workingWithFilesystem) { 
+                fs::path relativeFilePath = (entry -> path).string().substr(basePathLength+1);
+                fs::path path = (fs::path)param2 / relativeFilePath;
+                if (!(fs::is_directory(path))) {
+                    fs::create_directory(path);
+                }
             }
+            forEachInLibraryNode(library, entry, action, param1, param2, param3, basePathLength);
+
+        } else if (action == "open") {
+            openLibraryFile(library, entry, true);
+
+        } else if (action == "saveAs") {
+            std::string ext = ((fs::path)(entry -> name)).extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), charToLower);
+            if (!(library -> isFileTypeSupported(ext))) { continue; }
+
+            auto file = openLibraryFileinBackground(library, entry);
+            fs::path relativeFilePath = (file -> getPath()).string().substr(basePathLength+1);
+            fs::path path = (fs::path)param2 / relativeFilePath;
+            path = path.replace_extension((fs::path)param1);
+            file -> setFlag("Compression", param3);
+            file -> saveToFile(path);
+            file.reset();
         }
     }
 }
@@ -848,10 +891,36 @@ void PIDStudio::savePaletteToFile() {
     (currentPalette ? currentPalette : defaultPalette)->saveToFile(selectedFile);
 }
 
-void PIDStudio::saveAsFile() {
-    const char* selectedFile = saveFileDialog<pidFilter, bmpFilter, pngFilter>(_("Image Files"));
+void PIDStudio::saveCurrentFileAs() {
+    const char* selectedFile = saveFileDialog<pidFilter, pngFilter>(_("Image Files"));
 
     if (!selectedFile || !currentlyFocusedFile) return;
 
     currentlyFocusedFile->saveToFile(selectedFile);
+}
+
+void PIDStudio::saveNodeFileAs(
+    const std::shared_ptr<AssetLibrary>& library,
+    const std::shared_ptr<AssetLibraryTreeNode>& node
+) {
+    const char* selectedFile = saveFileDialog<pidFilter, pngFilter>(_("Image Files"));
+
+    if (!selectedFile) return;
+
+    auto file = openLibraryFileinBackground(library, node);
+    file -> saveToFile(selectedFile);
+    file.reset();
+}
+
+void PIDStudio::saveAllFilesAs(
+    const std::shared_ptr<AssetLibrary>& library,
+    const std::shared_ptr<AssetLibraryTreeNode>& selectedNode,
+    const char* format,
+    bool compression
+) {
+    const char* selectedFolder = tinyfd_selectFolderDialog( _("Select folder"), nullptr);
+
+    if (!selectedFolder) {return;}
+
+    forEachInLibraryNode(library, selectedNode, "saveAs", format, selectedFolder, compression);
 }

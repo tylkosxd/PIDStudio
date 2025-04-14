@@ -3,10 +3,6 @@
 #include "PIDPalette.h"
 #include "../PIDStudio.h"
 
-#ifdef DEBUG
-#include <iostream>
-#endif // DEBUG
-
 bool PIDFile::loadFromFile(const std::filesystem::path& filepath) {
     this->path = filepath;
     name = filepath.filename().string();
@@ -21,12 +17,6 @@ bool PIDFile::load(std::istream& stream) {
     originalFlags = flags;
     originalOffsetX = offsetX;
     originalOffsetY = offsetY;
-
-#ifdef DEBUG
-    if (magic != 10) {
-        std::cout << "Unexpected magic number" << std::endl;
-    }
-#endif // DEBUG
 
     if (flags & Flag_OwnPalette) {
         stream.seekg(-768, std::ios_base::end);
@@ -43,14 +33,17 @@ bool PIDFile::load(std::istream& stream) {
     uint8_t currentByte;
 
     auto outputCurrentByte = [&]() { *outPtr++ = currentByte; };
+    
     auto fillWithCurrentByte = [&]() {
         memset(outPtr, currentByte, length);
         outPtr += length;
     };
+
     auto fillWithZeros = [&]() {
         currentByte = 0;
         fillWithCurrentByte();
     };
+
     auto readAndOutputBytes = [&]() {
         for (int i = 0; i < length; i++) {
             stream > currentByte;
@@ -95,9 +88,10 @@ bool PIDFile::load(std::istream& stream) {
 
 bool PIDFile::saveToFile(const std::filesystem::path& filepath) {
     std::filesystem::path extension = filepath.extension();
-    if (extension == ".bmp" || extension == ".png") {
-        return image.saveToFile(filepath.string());
-    } else if (extension == ".pid") {
+    if (extension == ".png") {
+        if (requiresTextureUpdate) image = makeImage();
+        return makeImageWithOffsets().saveToFile(filepath.string());
+    } else {
         return File::saveToFile(filepath);
     }
     return false;
@@ -189,23 +183,24 @@ bool PIDFile::save(std::ostream &stream) {
     return true;
 }
 
+sf::Image PIDFile::makeImage() {
+    const std::shared_ptr<PIDPalette>& imagePalette = (palette && !getFlag("Lights")) ? palette : app->getDefaultPalette();
+    sf::Image img;
+    
+    img.create(width, height);
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            img.setPixel(x, y, imagePalette->getColor(data[y * width + x]));
+        }
+    }
+    return img;
+}
+
 const sf::Texture& PIDFile::getTexture() {
     if (requiresTextureUpdate) {
-        const std::shared_ptr<PIDPalette>& imagePalette = (palette and not (flags & Flag_Lights)) ? palette : app->getDefaultPalette();
-
-        sf::Image img;
-        img.create(width, height);
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                img.setPixel(x, y, imagePalette->getColor(data[y * width + x]));
-            }
-        }
-
-        texture.loadFromImage(img);
+        image = makeImage();
+        texture.loadFromImage(image);
         texture.setSmooth(true);
-
-        image = img;
         requiresTextureUpdate = false;
     }
     return texture;
@@ -237,4 +232,17 @@ bool PIDFile::getFlag(std::string flagName) {
 
 bool PIDFile::isModified() {
     return (flags != originalFlags || offsetX != originalOffsetX || offsetY != originalOffsetY);
+}
+
+sf::Image PIDFile::makeImageWithOffsets() {
+    int absOffsetX = abs(offsetX); int absOffsetY = abs(offsetY);
+
+    if (absOffsetX < 2 && absOffsetY < 2) { return image; } /* resizing for offsets 0, 1 or -1 can be ommited. Right?*/
+
+    sf::Image newImage;
+    newImage.create(width + 2*absOffsetX, height + 2*absOffsetY);
+    newImage.createMaskFromColor(sf::Color::Black);
+    newImage.copy(image, absOffsetX + offsetX, absOffsetY + offsetY);
+
+    return newImage;
 }

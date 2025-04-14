@@ -51,8 +51,10 @@ public:
     void setFlag(std::string flagName, bool state);
     bool getFlag(std::string flagName);
 
+    sf::Image makeImage();
     void resetTexture() { requiresTextureUpdate = true; }
     bool isModified();
+    sf::Image makeImageWithOffsets();
 
 private:
     PIDStudio* app;

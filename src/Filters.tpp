@@ -42,5 +42,4 @@ constexpr auto constexpr_get_filter_patterns_string() {
 
 static constexpr Filter<constexpr_to_array("pid")> pidFilter;
 static constexpr Filter<constexpr_to_array("pal")> palFilter;
-static constexpr Filter<constexpr_to_array("bmp")> bmpFilter;
 static constexpr Filter<constexpr_to_array("png")> pngFilter;

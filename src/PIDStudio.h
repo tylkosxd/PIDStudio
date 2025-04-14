@@ -31,6 +31,10 @@ public:
         const std::shared_ptr<AssetLibraryTreeNode>& node,
         bool inSeparateWindow = false
     );
+	std::shared_ptr<PIDFile> openLibraryFileinBackground(
+		const std::shared_ptr<AssetLibrary>& library,
+		const std::shared_ptr<AssetLibraryTreeNode>& node
+	);
 	void libraryEntryContextMenu(
         const std::shared_ptr<AssetLibrary>& library,
         const std::shared_ptr<AssetLibraryTreeNode>& node,
@@ -89,12 +93,30 @@ private:
 	void addLibraryDialog();
 	void addLibrary(std::filesystem::path& path, const std::shared_ptr<SupportedGame>& game);
 	bool isFileAlreadyOpen(const std::filesystem::path& path, PIDFile** outFilePtr = nullptr);
-	void openAllFiles(const std::shared_ptr<AssetLibrary>& library, const std::shared_ptr<AssetLibraryTreeNode>& node);
+	void forEachInLibraryNode(
+		const std::shared_ptr<AssetLibrary>& library,
+		const std::shared_ptr<AssetLibraryTreeNode>& node,
+		const char* action, /* "open", "saveAs"*/
+		const char* param1 = nullptr, /* file format for "saveAs" action - ".pid" or ".png" */
+		const char* param2 = nullptr, /* folder path for "saveAs" action */
+		bool param3 = false, /* true for compressed PIDs*/
+		size_t basePathLength = 0
+	);
 	void loadPaletteFromFile();
 	void savePaletteToFile();
-	void saveAsFile();
-	void initFlagsCheckboxes();
-	void initOffsetsInputs();
+	void saveCurrentFileAs();
+	void saveNodeFileAs(
+		const std::shared_ptr<AssetLibrary>& library,
+		const std::shared_ptr<AssetLibraryTreeNode>& node
+	);
+	void saveAllFilesAs(
+		const std::shared_ptr<AssetLibrary>& library,
+		const std::shared_ptr<AssetLibraryTreeNode>& selectedNode,
+		const char* format,
+		bool compression = false
+	);
+	void setFlagsCheckboxes();
+	void setOffsetsInputs();
 	void saveCurrentFile();
 	bool checkboxTransparencyFlag[1];
 	bool checkboxVideoMemoryFlag[1];

@@ -45,6 +45,10 @@ void AssetLibrary::populateTree(
     game->initializeLibrary(getRoot());
 }
 
+bool AssetLibrary::isFileTypeSupported(std::string extension) {
+    return supportedFileTypes.contains(extension);
+}
+
 void AssetLibrary::processFileNode(const std::shared_ptr<AssetLibraryTreeNode> &childNode) {
     std::string ext = childNode->path.extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), charToLower);

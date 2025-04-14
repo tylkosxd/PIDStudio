@@ -23,6 +23,8 @@ public:
     bool hasFilepath(const std::filesystem::path& filepath, std::shared_ptr<AssetLibraryTreeNode>& outFoundNode);
 
     static std::shared_ptr<PIDPalette> inferPalette(const std::shared_ptr<AssetLibraryTreeNode>& node);
+
+    bool isFileTypeSupported(std::string extension);
 private:
     static std::unordered_map<std::string, FileHandler> supportedFileTypes;
 
