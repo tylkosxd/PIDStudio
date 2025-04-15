@@ -6,6 +6,7 @@
 #include "Filters.h"
 
 #include "games/Claw.h"
+#include "formats/PIDFile.h"
 
 #include <stack>
 #include <fmt/core.h>
@@ -22,6 +23,7 @@
 #include "assets/icon.png.h"
 #include "assets/font.ttf.h"
 #include "assets/grayscale.pal.h"
+
 
 #define _(String) gettext(String)
 #define _STRINGS_TO_TRANSLATE_ _("Claw") _("Gruntz") _("Get Medieval")
@@ -104,7 +106,13 @@ PIDStudio::PIDStudio() : mainWindow(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), 
         0x0100, 0x017F, // Extended Latin A
         0,
     };
-    io.Fonts->AddFontFromMemoryTTF((void*)FONT_TTF, FONT_TTF_SIZE, baseFontSize, &fontConfig, fontRanges);
+    io.Fonts->AddFontFromMemoryTTF(
+        (void*)FONT_TTF,
+        FONT_TTF_SIZE,
+        baseFontSize,
+        &fontConfig,
+        fontRanges
+    );
 
     // load icons font, merging to default font
     ImFontConfig iconsConfig;
@@ -113,7 +121,13 @@ PIDStudio::PIDStudio() : mainWindow(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), 
     iconsConfig.PixelSnapH = true;
     iconsConfig.GlyphOffset.y = 1;
     static const ImWchar iconsRanges[] = { ICON_MIN_LC, ICON_MAX_LC, 0 };
-    io.Fonts->AddFontFromMemoryTTF((void*)LUCIDE_TTF, LUCIDE_TTF_SIZE, iconFontSize, &iconsConfig, iconsRanges);
+    io.Fonts->AddFontFromMemoryTTF(
+        (void*)LUCIDE_TTF,
+        LUCIDE_TTF_SIZE,
+        iconFontSize,
+        &iconsConfig,
+        iconsRanges
+    );
 
     // finalize loading fonts
     io.Fonts->Build();
@@ -126,7 +140,9 @@ PIDStudio::PIDStudio() : mainWindow(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), 
     for (auto const& library : settings[ASSET_LIBRARIES_INI_KEY]) {
         for (auto const& game : supportedGames) {
             if (library.first == game->getIniKey()) {
-                assetLibraries.emplace_back(std::make_shared<AssetLibrary>(this, library.second.c_str(), game));
+                assetLibraries.emplace_back(
+                    std::make_shared<AssetLibrary>(this, library.second.c_str(), game)
+                );
                 break;
             }
         }
@@ -165,12 +181,27 @@ int PIDStudio::run() {
                         openPidFileDialog();
                         break;
                     case sf::Keyboard::W:
-                        if (currentlyFocusedFile)
+                        if (currentlyFocusedFile && !event.key.shift) {
                             filesToClose.insert(currentlyFocusedFile);
+                            break;
+                        }
+                        if (event.key.shift) {
+                            closeAllFiles();
+                            break;
+                        }
                         break;
                     case sf::Keyboard::S:
-                        if (currentlyFocusedFile && currentlyFocusedFile -> isModified())
-                            saveCurrentFile();
+                        if (currentlyFocusedFile && currentlyFocusedFile -> isModified() && !event.key.shift) {
+                            saveOpenedFile(currentlyFocusedFile);
+                            break;
+                        }
+                        if (event.key.shift && canClickSaveAll()) {
+                            saveAllOpenedFiles();
+                            break;
+                        }
+                    case sf::Keyboard::E: /* 'E' for 'Export' */
+                        if (currentlyFocusedFile)
+                            saveCurrentFileAs();
                         break;
                     default:
                         break;
@@ -190,7 +221,16 @@ int PIDStudio::run() {
         ImGui::SetNextWindowSize(ImVec2(main_viewport->WorkSize.x, main_viewport->WorkSize.y));
         
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
-        ImGui::Begin(APPLICATION_NAME, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoDocking);
+        ImGui::Begin(
+            APPLICATION_NAME, (
+                ImGuiWindowFlags_MenuBar |
+                ImGuiWindowFlags_NoTitleBar |
+                ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoBringToFrontOnFocus |
+                ImGuiWindowFlags_NoDocking
+            )
+        );
         ImGui::PopStyleVar();
 
         menuBar();
@@ -242,11 +282,15 @@ void PIDStudio::menuBar() {
 
             bool currentFileModified = currentlyFocusedFile && currentlyFocusedFile -> isModified();
             if (ImGui::MenuItemEx(_("Save"), ICON_LC_SAVE, "Ctrl+S", false, currentFileModified)) {
-                saveCurrentFile();
+                saveOpenedFile(currentlyFocusedFile);
             }
             
-            if (ImGui::MenuItem(_("Save as..."))) saveCurrentFileAs();
-            if (ImGui::MenuItemEx(_("Save all"), ICON_LC_SAVE_ALL, "Ctrl+Shift+S", false, false)) { /* TODO */ }
+            if (ImGui::MenuItemEx(_("Save as..."), ICON_LC_IMAGE_DOWN, "Ctrl+E")) {
+                saveCurrentFileAs();
+            }
+            if (ImGui::MenuItemEx(_("Save all"), ICON_LC_SAVE_ALL, "Ctrl+Shift+S", false, canClickSaveAll())) { 
+                saveAllOpenedFiles();
+            }
 
             ImGui::Separator();
 
@@ -274,18 +318,27 @@ void PIDStudio::toolBar()
     ImGui::PushStyleColor(ImGuiCol_Button, 0);
 
     if (ImGui::BeginMenuBar()) {
+
         ImGui::BeginDisabled();
         if (ImGui::Button(ICON_LC_IMAGE_PLUS)) { /* TODO */ }
         ImGui::EndDisabled();
 
-        if (ImGui::Button(ICON_LC_IMAGE_UP)) { openPidFileDialog(); }
+        if (ImGui::Button(ICON_LC_IMAGE_UP)) openPidFileDialog();
+
+        if (!currentlyFocusedFile) ImGui::BeginDisabled();
+        if (ImGui::Button(ICON_LC_IMAGE_DOWN)) saveCurrentFileAs();
+        if (!currentlyFocusedFile) ImGui::EndDisabled();
 
         bool currentFileModified = currentlyFocusedFile && currentlyFocusedFile -> isModified();
-        if (!currentFileModified) { ImGui::BeginDisabled(); }
-        if (ImGui::Button(ICON_LC_SAVE)) { saveCurrentFile(); }
-        if (currentFileModified) { ImGui::BeginDisabled(); }
-        if (ImGui::Button(ICON_LC_SAVE_ALL)) { /* TODO */ }
-        ImGui::EndDisabled();
+
+        if (!currentFileModified) ImGui::BeginDisabled();
+        if (ImGui::Button(ICON_LC_SAVE)) saveOpenedFile(currentlyFocusedFile);
+        if (!currentFileModified) ImGui::EndDisabled();
+
+        bool canSaveAll = canClickSaveAll(); 
+        if (!canSaveAll) ImGui::BeginDisabled();
+        if (ImGui::Button(ICON_LC_SAVE_ALL)) saveAllOpenedFiles();
+        if (!canSaveAll) ImGui::EndDisabled();
 
         ImGui::EndMenuBar();
     }
@@ -332,12 +385,12 @@ void PIDStudio::preDockedWindows()
     if (shouldPrepareDockspace) {
         ImGui::SetNextWindowDockID(dockspaceIdRightBottom, ImGuiDir_Down);
     }
-    libraryWindow();
-
+    projectsWindow();
+    
     if (shouldPrepareDockspace) {
         ImGui::SetNextWindowDockID(dockspaceIdRightBottom, ImGuiDir_Down);
     }
-    projectsWindow();
+    libraryWindow();
 
     if (shouldPrepareDockspace) {
         shouldPrepareDockspace = false;
@@ -378,21 +431,19 @@ void PIDStudio::openedFilesWindows() {
 }
 
 void PIDStudio::setFlagsCheckboxes() {
-    if (!currentlyFocusedFile) { return; }
-    checkboxTransparencyFlag[0] = currentlyFocusedFile -> getFlag("Transparency");
-    checkboxVideoMemoryFlag[0] = currentlyFocusedFile -> getFlag("VideoMemory");
-    checkboxSystemMemoryFlag[0] = currentlyFocusedFile -> getFlag("SystemMemory");
-    checkboxMirrorFlag[0] = currentlyFocusedFile -> getFlag("Mirror");
-    checkboxInvertFlag[0] = currentlyFocusedFile -> getFlag("Invert");
-    checkboxCompressionFlag[0] = currentlyFocusedFile -> getFlag("Compression");
-    checkboxLightsFlag[0] = currentlyFocusedFile -> getFlag("Lights");
-    checkboxOwnPaletteFlag[0] = currentlyFocusedFile -> getFlag("OwnPalette");
+    if (!currentlyFocusedFile) return;
+    checkboxTransparencyFlag = currentlyFocusedFile->getFlags() & PID_Flag_Transparency;
+    checkboxVideoMemoryFlag = currentlyFocusedFile->getFlags() & PID_Flag_VideoMemory;
+    checkboxSystemMemoryFlag = currentlyFocusedFile->getFlags() & PID_Flag_SystemMemory;
+    checkboxCompressionFlag = currentlyFocusedFile->getFlags() & PID_Flag_Compression;
+    checkboxLightsFlag = currentlyFocusedFile->getFlags() & PID_Flag_Lights;
+    checkboxOwnPaletteFlag = currentlyFocusedFile->getFlags() & PID_Flag_OwnPalette;
 }
 
 void PIDStudio::setOffsetsInputs() {
-    if (!currentlyFocusedFile) { return; }
-    inputIntOffsetX[0] = currentlyFocusedFile->getOffsetX();
-    inputIntOffsetY[0] = currentlyFocusedFile->getOffsetY();
+    if (!currentlyFocusedFile) return;
+    inputIntOffsetX = currentlyFocusedFile->getOffsetX();
+    inputIntOffsetY = currentlyFocusedFile->getOffsetY();
 }
 
 PIDStudio::OPENED_FILE_WINDOW_RESULT PIDStudio::openedFileWindow(const std::shared_ptr<PIDFile>& file)
@@ -404,7 +455,18 @@ PIDStudio::OPENED_FILE_WINDOW_RESULT PIDStudio::openedFileWindow(const std::shar
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing;
 
     bool didNotCloseWindow = true, didClickKeepLibraryFileOpen = false; // outputs from UI library
-    ImGui::Begin(windowName.c_str(), flags, &didNotCloseWindow, isLibraryFile ? &didClickKeepLibraryFileOpen : nullptr);
+    ImGui::Begin(
+        windowName.c_str(),
+        flags,
+        &didNotCloseWindow,
+        isLibraryFile ? &didClickKeepLibraryFileOpen : nullptr
+    );
+
+    /* Fixing ImGui::Begin setting 3rd argument to false on middle mouse button press. */
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Middle)) {
+        didNotCloseWindow = true;
+    }
+
     if (ImGui::BeginPopupContextItem()) {
         closeContextMenu();
         ImGui::EndPopup();
@@ -442,15 +504,16 @@ PIDStudio::OPENED_FILE_WINDOW_RESULT PIDStudio::openedFileWindow(const std::shar
 void PIDStudio::paletteWindow() {
     if (ImGui::Begin(_("Palette"))) {
         std::shared_ptr<PIDPalette> palette = defaultPalette;
-        bool hasLightsFlag = currentlyFocusedFile && currentlyFocusedFile -> getFlag("Lights");
+        bool hasLightsFlag = currentlyFocusedFile && 
+            (currentlyFocusedFile -> getFlags() & PID_Flag_Lights);
         if (currentPalette && !(hasLightsFlag)) {
             palette = currentPalette;
         }
         ImGui::CenteredImage(palette->getTexture());
 
         if (ImGui::BeginPopupForLastItem("Palette")) {
-            if (ImGui::MenuItem(_("Load from file"))) { loadPaletteFromFile(); }
-            if (ImGui::MenuItem(_("Save to file"))) { savePaletteToFile(); }
+            if (ImGui::MenuItem(_("Load from file"))) loadPaletteFromFile();
+            if (ImGui::MenuItem(_("Save to file"))) savePaletteToFile();
 
             ImGui::EndPopup();
         }
@@ -461,17 +524,17 @@ void PIDStudio::paletteWindow() {
 void PIDStudio::offsetsWindow() {
     if (ImGui::Begin(_("Offsets"))) {
         if (currentlyFocusedFile) {
-            if (ImGui::InputInt(_("Offset X"), inputIntOffsetX)) {
+            if (ImGui::InputInt(_("Offset X"), &inputIntOffsetX)) {
                 int max = currentlyFocusedFile -> getWidth();
-                if (inputIntOffsetX[0] > max) {inputIntOffsetX[0] = max; }
-                if (inputIntOffsetX[0] < -max) {inputIntOffsetX[0] = -max; }
-                currentlyFocusedFile-> setOffsetX(inputIntOffsetX[0]);
+                if (inputIntOffsetX > max) inputIntOffsetX = max;
+                if (inputIntOffsetX < -max) inputIntOffsetX = -max;
+                currentlyFocusedFile-> setOffsetX(inputIntOffsetX);
             }
-            if (ImGui::InputInt(_("Offset Y"), inputIntOffsetY)) {
+            if (ImGui::InputInt(_("Offset Y"), &inputIntOffsetY)) {
                 int max = currentlyFocusedFile -> getHeight();
-                if (inputIntOffsetY[0] > max) {inputIntOffsetY[0] = max; }
-                if (inputIntOffsetY[0] < -max) {inputIntOffsetY[0] = -max; }
-                currentlyFocusedFile -> setOffsetY(inputIntOffsetY[0]);
+                if (inputIntOffsetY > max) inputIntOffsetY = max;
+                if (inputIntOffsetY < -max) inputIntOffsetY = -max;
+                currentlyFocusedFile -> setOffsetY(inputIntOffsetY);
             }
         } else {
             ImGui::Text("%s", _("No opened files."));
@@ -483,30 +546,25 @@ void PIDStudio::offsetsWindow() {
 void PIDStudio::flagsWindow(){
     if (ImGui::Begin(_("Flags"))) {
         if (currentlyFocusedFile) {
-            if (ImGui::Checkbox(_("Transparency"), checkboxTransparencyFlag)) {
-                currentlyFocusedFile -> setFlag("Transparency", checkboxTransparencyFlag[0]);
+            if (ImGui::Checkbox(_("Transparency"), &checkboxTransparencyFlag)) {
+                currentlyFocusedFile -> setFlag(PID_Flag_Transparency, checkboxTransparencyFlag);
             }
-            if (ImGui::Checkbox(_("Use video Memory"), checkboxVideoMemoryFlag)) {
-                currentlyFocusedFile -> setFlag("VideoMemory", checkboxVideoMemoryFlag[0]);
+            if (ImGui::Checkbox(_("Use video memory"), &checkboxVideoMemoryFlag)) {
+                currentlyFocusedFile -> setFlag(PID_Flag_VideoMemory, checkboxVideoMemoryFlag);
             };
-            if (ImGui::Checkbox(_("Use system memory"), checkboxSystemMemoryFlag)) {
-                currentlyFocusedFile -> setFlag("SystemMemory", checkboxSystemMemoryFlag[0]);
+            if (ImGui::Checkbox(_("Use system memory"), &checkboxSystemMemoryFlag)) {
+                currentlyFocusedFile -> setFlag(PID_Flag_SystemMemory, checkboxSystemMemoryFlag);
             }
-            if (ImGui::Checkbox(_("Mirror"), checkboxMirrorFlag)) {
-                currentlyFocusedFile -> setFlag("Mirror", checkboxMirrorFlag[0]);
+            /* Mirror and Invert flags are not supported in Claw, so let's omit them by now*/
+            if (ImGui::Checkbox(_("Compress"), &checkboxCompressionFlag)) {
+                currentlyFocusedFile -> setFlag(PID_Flag_Compression, checkboxCompressionFlag);
             }
-            if (ImGui::Checkbox(_("Invert"), checkboxInvertFlag)) {
-                currentlyFocusedFile -> setFlag("Invert", checkboxInvertFlag[0]);
-            }
-            if (ImGui::Checkbox(_("Compress"), checkboxCompressionFlag)) {
-                currentlyFocusedFile -> setFlag("Compression", checkboxCompressionFlag[0]);
-            }
-            if (ImGui::Checkbox(_("Set as light asset"), checkboxLightsFlag)) {
-                currentlyFocusedFile -> setFlag("Lights", checkboxLightsFlag[0]);
+            if (ImGui::Checkbox(_("Set as light asset"), &checkboxLightsFlag)) {
+                currentlyFocusedFile -> setFlag(PID_Flag_Lights, checkboxLightsFlag);
                 currentlyFocusedFile -> resetTexture();
             }
-            if (ImGui::Checkbox(_("Save with palette"), checkboxOwnPaletteFlag)) {
-                currentlyFocusedFile -> setFlag("OwnPalette", checkboxOwnPaletteFlag[0]);
+            if (ImGui::Checkbox(_("Save with palette"), &checkboxOwnPaletteFlag)) {
+                currentlyFocusedFile -> setFlag(PID_Flag_OwnPalette, checkboxOwnPaletteFlag);
             };
         } else {
             ImGui::Text("%s", _("No opened files."));
@@ -533,8 +591,7 @@ void PIDStudio::metadataWindow() {
     ImGui::End();
 }
 
-void PIDStudio::libraryWindow()
-{
+void PIDStudio::libraryWindow() {
     ImGui::Begin(_("Library"));
 
     if (assetLibraries.empty()) {
@@ -678,7 +735,6 @@ void PIDStudio::libraryEntryContextMenu(
             if (ImGui::MenuItem(_("Compressed PID"))) {
                 saveAllFilesAs(library, node, ".pid", true);
             }
-            ImGui::Separator();
             if (ImGui::MenuItem(_("PNG"))) {
                 saveAllFilesAs(library, node, ".png");
             }
@@ -725,8 +781,8 @@ void PIDStudio::closeContextMenu() {
     if (ImGui::MenuItem(_("Close all"), "Ctrl+Shift+W", false, isAnyTabOpen)) { closeAllFiles(); }
 }
 
-void PIDStudio::saveCurrentFile() {
-    currentlyFocusedFile -> saveToFile(currentlyFocusedFile -> getPath());
+void PIDStudio::saveOpenedFile(std::shared_ptr<PIDFile> file) {
+    file -> saveToFile(file -> getPath());
 }
 
 void PIDStudio::keepLibraryFileOpened() {
@@ -737,7 +793,9 @@ void PIDStudio::keepLibraryFileOpened() {
 
 void PIDStudio::closeFile(const std::shared_ptr<PIDFile>& file) {
     if (file -> isModified()) {
-        if (tinyfd_messageBox(_("Save"), _("Save the file before closing?"), "yesno", "question", 1) == 1) { 
+        std::string question = _("Save the file before closing?\n");
+        question += (file -> getPath()).string();
+        if (tinyfd_messageBox(_("Save"), question.c_str(), "yesno", "question", 1) == 1) { 
             file -> saveToFile(file -> getPath());
         }
     }
@@ -760,6 +818,31 @@ void PIDStudio::closeAllFiles() {
     }
 }
 
+void PIDStudio::saveAllOpenedFiles() {
+    for (const auto& file : openedFiles) {
+        if (file -> isModified()) 
+            saveOpenedFile(file);
+    }
+
+    if (openedLibraryFile) {
+        if (openedLibraryFile -> isModified())
+            saveOpenedFile(openedLibraryFile);
+    }
+}
+
+bool PIDStudio::canClickSaveAll() {
+    if (!currentlyFocusedFile) return false;
+
+    if (openedLibraryFile && openedLibraryFile -> isModified()) return true;
+
+    for (const auto& file : openedFiles) {
+        if (file -> isModified()) 
+            return true;
+    }
+
+    return false;
+}
+
 void PIDStudio::openLibraryFile(
     const std::shared_ptr<AssetLibrary>& library,
     const std::shared_ptr<AssetLibraryTreeNode>& node,
@@ -773,6 +856,9 @@ void PIDStudio::openLibraryFile(
 
     auto file = std::make_shared<PIDFile>(this);
     if (file->loadFromFile(node->path)) {
+        if (inSeparateWindow && openedLibraryFile) {
+            keepLibraryFileOpened();
+        }
         openedLibraryFile = file;
         bringFocusTo = file.get();
 
@@ -796,8 +882,10 @@ std::shared_ptr<PIDFile> PIDStudio::openLibraryFileinBackground(
 ) {
     auto file = std::make_shared<PIDFile>(this);
     file -> loadFromFile(node -> path);
+
     auto palette = library -> inferPalette(node);
-    if (palette) { file -> setPalette(palette); }
+    if (palette) file -> setPalette(palette);
+
     return file;
 }
 
@@ -859,7 +947,7 @@ void PIDStudio::forEachInLibraryNode(
             fs::path relativeFilePath = (file -> getPath()).string().substr(basePathLength+1);
             fs::path path = (fs::path)param2 / relativeFilePath;
             path = path.replace_extension((fs::path)param1);
-            file -> setFlag("Compression", param3);
+            file -> setFlag(PID_Flag_Compression, param3);
             file -> saveToFile(path);
             file.reset();
         }

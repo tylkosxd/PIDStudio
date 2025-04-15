@@ -19,7 +19,7 @@ class PIDStudio {
 	enum OPENED_FILE_WINDOW_RESULT {
 		NONE,
 		CLOSE,
-		KEEP_OPEN,
+		KEEP_OPEN
 	};
 public:
 	PIDStudio();
@@ -31,6 +31,7 @@ public:
         const std::shared_ptr<AssetLibraryTreeNode>& node,
         bool inSeparateWindow = false
     );
+	void keepLibraryFileOpened();
 	std::shared_ptr<PIDFile> openLibraryFileinBackground(
 		const std::shared_ptr<AssetLibrary>& library,
 		const std::shared_ptr<AssetLibraryTreeNode>& node
@@ -80,12 +81,10 @@ private:
     void projectsWindow();
 
 	void closeContextMenu();
-	void saveAsContextMenu();
 
 	void openedFilesWindows();
 	OPENED_FILE_WINDOW_RESULT openedFileWindow(const std::shared_ptr<PIDFile>& file);
 
-	void keepLibraryFileOpened();
 	void closeFile(const std::shared_ptr<PIDFile>& file);
 	void closeAllFiles();
 
@@ -117,15 +116,15 @@ private:
 	);
 	void setFlagsCheckboxes();
 	void setOffsetsInputs();
-	void saveCurrentFile();
-	bool checkboxTransparencyFlag[1];
-	bool checkboxVideoMemoryFlag[1];
-	bool checkboxSystemMemoryFlag[1];
-	bool checkboxMirrorFlag[1];
-	bool checkboxInvertFlag[1];
-	bool checkboxCompressionFlag[1];
-	bool checkboxLightsFlag[1];
-	bool checkboxOwnPaletteFlag[1];
-	int inputIntOffsetX[1];
-	int inputIntOffsetY[1];
+	void saveOpenedFile(std::shared_ptr<PIDFile> file);
+	void saveAllOpenedFiles();
+	bool canClickSaveAll();
+	bool checkboxTransparencyFlag;
+	bool checkboxVideoMemoryFlag;
+	bool checkboxSystemMemoryFlag;
+	bool checkboxCompressionFlag;
+	bool checkboxLightsFlag;
+	bool checkboxOwnPaletteFlag;
+	int inputIntOffsetX;
+	int inputIntOffsetY;
 };

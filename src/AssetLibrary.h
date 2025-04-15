@@ -34,5 +34,8 @@ private:
     void populateTree(const std::filesystem::path& path, const std::shared_ptr<AssetLibraryTreeNode>& node) override;
     void processFileNode(const std::shared_ptr<AssetLibraryTreeNode>& childNode) override;
     void displayContextMenu(const std::shared_ptr<AssetLibraryTreeNode> &node) override;
-    void openLeafNode(const std::shared_ptr<AssetLibraryTreeNode> &node) override;
+    void openLeafNode(
+        const std::shared_ptr<AssetLibraryTreeNode> &node,
+        bool inSeparateWindow = false
+    ) override;
 };

@@ -18,7 +18,7 @@ bool PIDFile::load(std::istream& stream) {
     originalOffsetX = offsetX;
     originalOffsetY = offsetY;
 
-    if (flags & Flag_OwnPalette) {
+    if (flags & PID_Flag_OwnPalette) {
         stream.seekg(-768, std::ios_base::end);
         palette = std::make_shared<PIDPalette>();
         palette->loadFromStream(stream);
@@ -77,7 +77,7 @@ bool PIDFile::load(std::istream& stream) {
         }
     };
 
-    if (flags & Flag_Compression) {
+    if (flags & PID_Flag_Compression) {
         readCompressedPixels();
     } else {
         readUncompressedPixels();
@@ -89,7 +89,6 @@ bool PIDFile::load(std::istream& stream) {
 bool PIDFile::saveToFile(const std::filesystem::path& filepath) {
     std::filesystem::path extension = filepath.extension();
     if (extension == ".png") {
-        if (requiresTextureUpdate) image = makeImage();
         return makeImageWithOffsets().saveToFile(filepath.string());
     } else {
         return File::saveToFile(filepath);
@@ -166,13 +165,13 @@ bool PIDFile::save(std::ostream &stream) {
         writeUncompressedSegment();
     };
 
-    if (flags & Flag_Compression) {
+    if (flags & PID_Flag_Compression) {
         writeCompressedPixels();
     } else {
         writeUncompressedPixels();
     }
 
-    if (flags & Flag_OwnPalette && !(flags & Flag_Lights)) {
+    if (flags & PID_Flag_OwnPalette && !(flags & PID_Flag_Lights)) {
         palette -> save(stream);
     }
 
@@ -184,7 +183,8 @@ bool PIDFile::save(std::ostream &stream) {
 }
 
 sf::Image PIDFile::makeImage() {
-    const std::shared_ptr<PIDPalette>& imagePalette = (palette && !getFlag("Lights")) ? palette : app->getDefaultPalette();
+    const std::shared_ptr<PIDPalette>& imagePalette = 
+        (palette && !(flags & PID_Flag_Lights)) ? palette : app->getDefaultPalette();
     sf::Image img;
     
     img.create(width, height);
@@ -206,38 +206,28 @@ const sf::Texture& PIDFile::getTexture() {
     return texture;
 }
 
-int PIDFile::getFlagIntValue(std::string flagName) {
-    if (flagName == "Transparency") { return (int)Flag_Transparency;};
-    if (flagName == "VideoMemory") { return (int)Flag_VideoMemory;};
-    if (flagName == "SystemMemory") { return (int)Flag_SystemMemory;};
-    if (flagName == "Mirror") { return (int)Flag_Mirror;};
-    if (flagName == "Invert") { return (int)Flag_Invert;};
-    if (flagName == "Compression") { return (int)Flag_Compression;};
-    if (flagName == "Lights") { return (int)Flag_Lights;};
-    if (flagName == "OwnPalette") { return (int)Flag_OwnPalette;};
-    return 0;
+bool PIDFile::isModified() {
+    return (
+        flags != originalFlags || 
+        offsetX != originalOffsetX || 
+        offsetY != originalOffsetY
+    );
 }
 
-void PIDFile::setFlag(std::string flagName, bool state) {
+void PIDFile::setFlag(PID_FLAGS flag, bool state) {
     if (state) {
-        flags = (FLAGS)(flags | (getFlagIntValue(flagName)));
+        flags |= flag;
     } else {
-        flags = (FLAGS)(flags & ~getFlagIntValue(flagName));
+        flags &= ~flag;
     }
 }
 
-bool PIDFile::getFlag(std::string flagName) {
-    return (bool)(flags & getFlagIntValue(flagName));
-}
-
-bool PIDFile::isModified() {
-    return (flags != originalFlags || offsetX != originalOffsetX || offsetY != originalOffsetY);
-}
-
 sf::Image PIDFile::makeImageWithOffsets() {
-    int absOffsetX = abs(offsetX); int absOffsetY = abs(offsetY);
+    if (requiresTextureUpdate) image = makeImage();
 
-    if (absOffsetX < 2 && absOffsetY < 2) { return image; } /* resizing for offsets 0, 1 or -1 can be ommited. Right?*/
+    int absOffsetX = abs(offsetX); int absOffsetY = abs(offsetY);
+    /* resizing for offsets 0, 1 or -1 can be ommited*/
+    if (absOffsetX < 2 && absOffsetY < 2) { return image; }
 
     sf::Image newImage;
     newImage.create(width + 2*absOffsetX, height + 2*absOffsetY);

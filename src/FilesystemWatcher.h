@@ -36,10 +36,16 @@ public:
     inline bool isLeaf(const std::shared_ptr<Node>& node) { return node->children.empty(); }
     inline bool isRoot(const std::shared_ptr<Node>& node) { return node == root; }
 protected:
-    virtual void populateTree(const std::filesystem::path& rootPath, const std::shared_ptr<Node>& rootNode);
+    virtual void populateTree(
+        const std::filesystem::path& rootPath,
+        const std::shared_ptr<Node>& rootNode
+    );
     virtual void processFileNode(const std::shared_ptr<Node>& childNode);
     virtual void displayContextMenu(const std::shared_ptr<Node>& node) {};
-    virtual void openLeafNode(const std::shared_ptr<Node>& node) {};
+    virtual void openLeafNode(
+        const std::shared_ptr<Node>& node,
+        bool inSeparateWindow = false
+    ) {};
 
     inline const std::shared_ptr<Node>& getRoot() { return root; }
     inline const std::filesystem::path& getPath() { return path; }

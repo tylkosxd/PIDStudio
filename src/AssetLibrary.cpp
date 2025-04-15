@@ -63,8 +63,8 @@ void AssetLibrary::displayContextMenu(const std::shared_ptr<AssetLibraryTreeNode
     app->libraryEntryContextMenu(shared_from_this(), node, isLeaf(node), isRoot(node));
 }
 
-void AssetLibrary::openLeafNode(const std::shared_ptr<AssetLibraryTreeNode> &node) {
-    app->openLibraryFile(shared_from_this(), node);
+void AssetLibrary::openLeafNode(const std::shared_ptr<AssetLibraryTreeNode> &node, bool inSeparateWindow) {
+    app->openLibraryFile(shared_from_this(), node, inSeparateWindow);
 }
 
 bool AssetLibrary::hasFilepath(

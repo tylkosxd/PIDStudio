@@ -9,6 +9,8 @@
 #include "ImGuiExtensions.h"
 #include "imgui_internal.h"
 
+#include <SFML/Window.hpp>
+
 template<typename Node>
 std::shared_ptr<Node> TreeNodeBase<Node>::resolve(const char *resolvePath) {
     for (auto node: children) {
@@ -78,8 +80,14 @@ void FilesystemWatcher<Node>::displayTree() {
 
         if (isOpen) {
             if (isLeaf(node)) {
-                if (ImGui::GetCurrentContext()->LastItemData.StatusFlags & ImGuiItemStatusFlags_ToggledSelection) {
+                ImGuiItemStatusFlags leafFlags = ImGui::GetCurrentContext()->LastItemData.StatusFlags;
+                if (leafFlags & ImGuiItemStatusFlags_ToggledSelection) {
                     openLeafNode(node);
+                }
+                if (leafFlags & ImGuiItemStatusFlags_HoveredRect) {
+                    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Middle)) {
+                        openLeafNode(node, true);
+                    }
                 }
                 ImGui::TreePop();
             } else {
