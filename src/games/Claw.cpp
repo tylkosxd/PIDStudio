@@ -5,13 +5,14 @@
 
 #include "../assets/claw_game.pal.h"
 
-void initializeStatesPalettes(const std::shared_ptr<AssetLibraryTreeNode>& statesDirectory) {
+void Claw::initializeStatesPalettes(const std::shared_ptr<AssetLibraryTreeNode>& statesDirectory) {
     static const char* attractScreensName[] = { "ATTRACT", "SCREENS", nullptr };
     auto attractScreensDirectory = statesDirectory->resolve(attractScreensName);
 
     if (!attractScreensDirectory) return;
 
     statesDirectory->palette = attractScreensDirectory->palette;
+    app -> mapPalette("MENU", name, statesDirectory->palette);
 
     auto bootyDirectory = statesDirectory->resolve("BOOTY");
     if (!bootyDirectory) return;
@@ -39,10 +40,13 @@ void initializeStatesPalettes(const std::shared_ptr<AssetLibraryTreeNode>& state
     }
 
     bootyDirectory->palette = screensDirectory->children[0]->palette;
+    app -> mapPalette("BOOTY", name, bootyDirectory->palette);
 }
 
 void Claw::initializeLibrary(const std::shared_ptr<AssetLibraryTreeNode>& root) {
     SupportedGame::initializeLibrary(root);
+
+    static auto gamePalette = std::make_shared<PIDPalette>(CLAW_GAME_PAL);
 
     for (const auto& node : root->children) {
         switch (charToLower(node->name[0])) {
@@ -55,13 +59,15 @@ void Claw::initializeLibrary(const std::shared_ptr<AssetLibraryTreeNode>& root) 
             }
         } // fall-through
         case 'c': // CLAW
-            node->palette = std::make_shared<PIDPalette>(CLAW_GAME_PAL);
+            node->palette = gamePalette;
+            app -> mapPalette("GAME", name, node->palette);
             break;
         case 'l': // LEVELX
         {
             const auto& paletteDir = node->resolve("PALETTES");
             if (paletteDir) {
                 node->palette = paletteDir->palette;
+                app -> mapPalette(node->path, name, node->palette);
             }
             break;
         }

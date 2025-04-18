@@ -2,32 +2,12 @@
 
 #include <algorithm>
 
-#ifdef DEBUG
-#include <iostream>
-#include <fmt/core.h>
 
-void PIDPalette::printDebug() const
-{
-    int z = 0;
-    for (int i = 0; i < 256; i++) {
-        for (int j = 0; j < 3; j++) {
-            std::cout << fmt::format("{:#04x}, ", (int)data[i][j]);
-            if (++z == 12) {
-                z = 0;
-                std::cout << std::endl;
-            }
-        }
-    }
-}
-#endif // DEBUG
-
-PIDPalette::PIDPalette(const unsigned char* ptr)
-{
+PIDPalette::PIDPalette(const unsigned char* ptr) {
     std::copy(ptr, ptr+sizeof(data), (unsigned char*)data);
 }
 
-bool PIDPalette::load(std::istream& stream)
-{
+bool PIDPalette::load(std::istream& stream) {
     stream > data;
     return true;
 }
@@ -37,8 +17,7 @@ bool PIDPalette::save(std::ostream &stream) {
     return true;
 }
 
-const sf::Texture& PIDPalette::getTexture()
-{
+const sf::Texture& PIDPalette::getTexture() {
     if (requiresTextureUpdate) {
         sf::Image img;
         img.create(97, 97);
@@ -58,8 +37,7 @@ const sf::Texture& PIDPalette::getTexture()
     return texture;
 }
 
-sf::Color PIDPalette::getColor(int i, bool treatFirstAsTransparent) const
-{
+sf::Color PIDPalette::getColor(int i, bool treatFirstAsTransparent) const {
     if (i || !treatFirstAsTransparent)
         return {data[i][0], data[i][1], data[i][2]};
     else return sf::Color::Transparent;

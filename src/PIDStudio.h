@@ -10,6 +10,8 @@
 #include <mini/ini.h>
 
 #include <set>
+#include <map>
+#include <unordered_map>
 
 class PIDFile;
 class PIDPalette;
@@ -44,6 +46,13 @@ public:
     );
 	std::shared_ptr<PIDPalette> getDefaultPalette() { return defaultPalette; }
 
+	void mapPalette(
+		std::filesystem::path,
+		std::string libraryName,
+		std::shared_ptr<PIDPalette>,
+		bool isLoadedFromFile = false
+	);
+
 private:
 	std::vector<std::shared_ptr<SupportedGame>> supportedGames;
 	std::shared_ptr<SupportedGame> claw;
@@ -61,6 +70,13 @@ private:
 
 	std::shared_ptr<PIDPalette> currentPalette;
 	std::shared_ptr<PIDPalette> defaultPalette;
+	std::string defaultPaletteName;
+
+	std::map<std::string, std::shared_ptr<PIDPalette>> libraryPalettes;
+	std::unordered_map<std::string, bool> libraryPalettesSelectables;
+	std::map<std::string, std::shared_ptr<PIDPalette>> customPalettes;
+	std::unordered_map<std::string, bool> customPalettesSelectables;
+	bool ownPaletteSelectable;
 
 	PIDFile* bringFocusTo = nullptr;
 
@@ -73,6 +89,8 @@ private:
 	void menuBar();
 	void toolBar();
 	void preDockedWindows();
+	std::string resetPaletteComboBox();
+	void paletteComboBox();
 	void paletteWindow();
 	void offsetsWindow();
 	void metadataWindow();
@@ -106,7 +124,9 @@ private:
 	void saveCurrentFileAs();
 	void saveNodeFileAs(
 		const std::shared_ptr<AssetLibrary>& library,
-		const std::shared_ptr<AssetLibraryTreeNode>& node
+		const std::shared_ptr<AssetLibraryTreeNode>& node,
+		const char* format,
+		bool compression = false
 	);
 	void saveAllFilesAs(
 		const std::shared_ptr<AssetLibrary>& library,
@@ -114,8 +134,6 @@ private:
 		const char* format,
 		bool compression = false
 	);
-	void setFlagsCheckboxes();
-	void setOffsetsInputs();
 	void saveOpenedFile(std::shared_ptr<PIDFile> file);
 	void saveAllOpenedFiles();
 	bool canClickSaveAll();
@@ -123,8 +141,6 @@ private:
 	bool checkboxVideoMemoryFlag;
 	bool checkboxSystemMemoryFlag;
 	bool checkboxCompressionFlag;
-	bool checkboxLightsFlag;
-	bool checkboxOwnPaletteFlag;
 	int inputIntOffsetX;
 	int inputIntOffsetY;
 };

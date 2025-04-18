@@ -35,6 +35,7 @@ public:
 
     inline bool isLeaf(const std::shared_ptr<Node>& node) { return node->children.empty(); }
     inline bool isRoot(const std::shared_ptr<Node>& node) { return node == root; }
+    std::filesystem::path getRootPath() const { return path; }
 protected:
     virtual void populateTree(
         const std::filesystem::path& rootPath,

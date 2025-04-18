@@ -43,9 +43,12 @@ public:
     int          getWidth() const { return width; }
     int          getHeight() const { return height; }
     int          getOffsetX() const { return offsetX; }
+    int          getOriginalOffsetX() const { return originalOffsetX; }
+    int          getOriginalOffsetY() const { return originalOffsetY; }
     int          getOffsetY() const { return offsetY; }
     int*         getUserData() { return userdata; }
     PID_FLAGS    getFlags() const { return flags; }
+    PID_FLAGS    getOriginalFlags() const { return originalFlags; }
 
     void setOffsetX(int x) { offsetX = x; }
     void setOffsetY(int y) { offsetY = y; }
@@ -58,6 +61,7 @@ public:
     bool                isModified();
 
     std::shared_ptr<PIDPalette> getPalette() const { return palette; }
+    std::shared_ptr<PIDPalette> getOwnPalette() const { return ownPalette; }
     void setPalette(const std::shared_ptr<PIDPalette>& p) { palette = p; requiresTextureUpdate = true; }
 
 private:
@@ -68,6 +72,7 @@ private:
     PID_FLAGS flags;
     uint8_t* data = nullptr;
     std::shared_ptr<PIDPalette> palette;
+    std::shared_ptr<PIDPalette> ownPalette;
     std::string name;
     std::string windowName;
     std::filesystem::path path;

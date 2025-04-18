@@ -8,4 +8,5 @@ public:
 		: SupportedGame(app, name, iniKey, exeName) {}
 
 	void initializeLibrary(const std::shared_ptr<AssetLibraryTreeNode>& root) override;
+	void initializeStatesPalettes(const std::shared_ptr<AssetLibraryTreeNode>& statesDirectory);
 };

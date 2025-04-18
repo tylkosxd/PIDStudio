@@ -18,9 +18,6 @@ public:
 
     const sf::Texture& getTexture();
 
-#ifdef DEBUG
-    void printDebug() const;
-#endif // DEBUG
 
 private:
     unsigned char data[256][3];

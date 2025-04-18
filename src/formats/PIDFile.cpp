@@ -20,9 +20,10 @@ bool PIDFile::load(std::istream& stream) {
 
     if (flags & PID_Flag_OwnPalette) {
         stream.seekg(-768, std::ios_base::end);
-        palette = std::make_shared<PIDPalette>();
-        palette->loadFromStream(stream);
+        ownPalette = std::make_shared<PIDPalette>();
+        ownPalette->loadFromStream(stream);
         stream.seekg(32);
+        palette = ownPalette;
     }
 
     data = new uint8_t[width * height];
@@ -97,6 +98,8 @@ bool PIDFile::saveToFile(const std::filesystem::path& filepath) {
 }
 
 bool PIDFile::save(std::ostream &stream) {
+    if (!(flags & PID_Flag_Lights)) flags |= PID_Flag_OwnPalette; /* saving with the palette as a new default */
+
     stream < magic < flags < width < height < offsetX < offsetY < userdata;
 
     uint8_t *outPtr = data;
@@ -215,19 +218,16 @@ bool PIDFile::isModified() {
 }
 
 void PIDFile::setFlag(PID_FLAGS flag, bool state) {
-    if (state) {
-        flags |= flag;
-    } else {
-        flags &= ~flag;
-    }
+    if (state) flags |= flag;
+    else flags &= ~flag;
 }
 
 sf::Image PIDFile::makeImageWithOffsets() {
     if (requiresTextureUpdate) image = makeImage();
 
-    int absOffsetX = abs(offsetX); int absOffsetY = abs(offsetY);
-    /* resizing for offsets 0, 1 or -1 can be ommited*/
-    if (absOffsetX < 2 && absOffsetY < 2) { return image; }
+    int absOffsetX = abs(offsetX);
+    int absOffsetY = abs(offsetY);
+    if (absOffsetX == 0 && absOffsetY == 0) return image;
 
     sf::Image newImage;
     newImage.create(width + 2*absOffsetX, height + 2*absOffsetY);
