@@ -49,7 +49,7 @@ public:
 	void mapPalette(
 		std::filesystem::path,
 		std::string libraryName,
-		std::shared_ptr<PIDPalette>,
+		std::shared_ptr<PIDPalette>&,
 		bool isLoadedFromFile = false
 	);
 
@@ -64,19 +64,23 @@ private:
 
 	std::vector<std::shared_ptr<PIDFile>> openedFiles;
 	std::shared_ptr<PIDFile> openedLibraryFile;
-	std::shared_ptr<PIDFile> currentlyFocusedFile;
+	std::shared_ptr<PIDFile> currentFile;
 	std::set<std::shared_ptr<PIDFile>> filesToClose;
     std::shared_ptr<AssetLibrary> libraryToClose;
 
 	std::shared_ptr<PIDPalette> currentPalette;
 	std::shared_ptr<PIDPalette> defaultPalette;
 	std::string defaultPaletteName;
+	std::shared_ptr<PIDPalette> toTransformPalette;
 
-	std::map<std::string, std::shared_ptr<PIDPalette>> libraryPalettes;
-	std::unordered_map<std::string, bool> libraryPalettesSelectables;
-	std::map<std::string, std::shared_ptr<PIDPalette>> customPalettes;
-	std::unordered_map<std::string, bool> customPalettesSelectables;
-	bool ownPaletteSelectable;
+	std::map<std::string, std::shared_ptr<PIDPalette>> libPalettes; /* Palettes from the library */
+	std::unordered_map<std::string, bool> libPalettesComboS; /* States of Select palette combo box */
+	std::unordered_map<std::string, bool> libPalettesComboT; /* States of Transform palette combo box */
+	std::map<std::string, std::shared_ptr<PIDPalette>> customPalettes; /* Palettes loaded from file*/
+	std::unordered_map<std::string, bool> customPalettesComboS; /* States of Select palette combo box */
+	std::unordered_map<std::string, bool> customPalettesComboT; /* States of Transform palette combo box */
+	bool ownPaletteComboS;
+	bool ownPaletteComboT;
 
 	PIDFile* bringFocusTo = nullptr;
 
@@ -89,8 +93,12 @@ private:
 	void menuBar();
 	void toolBar();
 	void preDockedWindows();
-	std::string resetPaletteComboBox();
-	void paletteComboBox();
+
+	std::string resetPaletteComboSelect();
+	void paletteComboSelect();
+	void resetPaletteComboTransform();
+	void paletteComboTransform();
+
 	void paletteWindow();
 	void offsetsWindow();
 	void metadataWindow();
@@ -102,6 +110,9 @@ private:
 
 	void openedFilesWindows();
 	OPENED_FILE_WINDOW_RESULT openedFileWindow(const std::shared_ptr<PIDFile>& file);
+
+	void saveToRecentlyOpened(std::string path);
+	void recentlyOpenedContextMenu();
 
 	void closeFile(const std::shared_ptr<PIDFile>& file);
 	void closeAllFiles();
@@ -119,6 +130,7 @@ private:
 		bool param3 = false, /* true for compressed PIDs*/
 		size_t basePathLength = 0
 	);
+	void openPidFile(std::string filePath);
 	void loadPaletteFromFile();
 	void savePaletteToFile();
 	void saveCurrentFileAs();
@@ -134,7 +146,7 @@ private:
 		const char* format,
 		bool compression = false
 	);
-	void saveOpenedFile(std::shared_ptr<PIDFile> file);
+	void saveOpenedFile(std::shared_ptr<PIDFile>& file);
 	void saveAllOpenedFiles();
 	bool canClickSaveAll();
 	bool checkboxTransparencyFlag;

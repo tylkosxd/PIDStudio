@@ -28,7 +28,7 @@ class PIDFile : public File {
 public:
 
     explicit PIDFile(PIDStudio* app) : app(app) {};
-    ~PIDFile() { delete[] data; }
+    ~PIDFile() { delete[] data; if (originalData) delete[] originalData;}
 
     bool        loadFromFile(const std::filesystem::path& filepath) override;
     bool        load(std::istream& stream) override;
@@ -59,10 +59,14 @@ public:
     const sf::Texture&  getTexture();
     void                resetTexture() { requiresTextureUpdate = true; }
     bool                isModified();
+    void                rewriteOriginalData();
+    bool                isTransformedToPalette() { return transformedToPalette;}
 
     std::shared_ptr<PIDPalette> getPalette() const { return palette; }
     std::shared_ptr<PIDPalette> getOwnPalette() const { return ownPalette; }
     void setPalette(const std::shared_ptr<PIDPalette>& p) { palette = p; requiresTextureUpdate = true; }
+    void transformImageToPalette(std::shared_ptr<PIDPalette> outPalette);
+    void resetTransformationToPalette();
 
 private:
     PIDStudio* app;
@@ -70,13 +74,17 @@ private:
     int originalOffsetX, originalOffsetY;
     PID_FLAGS originalFlags;
     PID_FLAGS flags;
+    int dataSize;
     uint8_t* data = nullptr;
+    uint8_t* originalData = nullptr;
     std::shared_ptr<PIDPalette> palette;
     std::shared_ptr<PIDPalette> ownPalette;
+    std::shared_ptr<PIDPalette> originalPalette;
     std::string name;
     std::string windowName;
     std::filesystem::path path;
     sf::Image image;
     sf::Texture texture;
     bool requiresTextureUpdate = true;
+    bool transformedToPalette = false;
 };

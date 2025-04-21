@@ -2,6 +2,7 @@
 
 #include "PIDPalette.h"
 #include "../PIDStudio.h"
+#include "../PaletteLUV.h"
 
 bool PIDFile::loadFromFile(const std::filesystem::path& filepath) {
     this->path = filepath;
@@ -26,9 +27,10 @@ bool PIDFile::load(std::istream& stream) {
         palette = ownPalette;
     }
 
-    data = new uint8_t[width * height];
+    dataSize = width * height;
+    data = new uint8_t[dataSize];
     uint8_t *outPtr = data;
-    uint8_t *endPtr = outPtr + width * height;
+    uint8_t *endPtr = outPtr + dataSize;
 
     int length;
     uint8_t currentByte;
@@ -98,18 +100,18 @@ bool PIDFile::saveToFile(const std::filesystem::path& filepath) {
 }
 
 bool PIDFile::save(std::ostream &stream) {
-    if (!(flags & PID_Flag_Lights)) flags |= PID_Flag_OwnPalette; /* saving with the palette as a new default */
 
-    stream < magic < flags < width < height < offsetX < offsetY < userdata;
+    PID_FLAGS flagsPlusOwnPalette = flags;
+    stream < magic < (flagsPlusOwnPalette | PID_Flag_OwnPalette) /* saving with the palette as a new default */
+    < width < height < offsetX < offsetY < userdata;
 
     uint8_t *outPtr = data;
-    uint8_t *endPtr = outPtr + width * height;
+    uint8_t *endPtr = outPtr + dataSize;
     uint8_t *lastSegPtr = outPtr;
 
     uint8_t singleByte;
     int length = 0;
     bool isZero;
-    int lengthCounter = 0;
 
     auto writeCompressedSegment = [&]() {
         if (isZero) {
@@ -137,16 +139,16 @@ bool PIDFile::save(std::ostream &stream) {
         isZero = singleByte == 0;
 
         while (++outPtr < endPtr) {
-            lengthCounter++;
-            if (isZero != (*outPtr == 0) || lengthCounter == width) {
+            length++;
+            if (isZero != (*outPtr == 0) || length == width) {
                 writeCompressedSegment();
                 lastSegPtr = outPtr;
                 if (isZero != (*outPtr == 0)) { isZero = !isZero; };
-            } else if (outPtr - lastSegPtr == 127 || lengthCounter == width) {
+            } else if (outPtr - lastSegPtr == 127 || length == width) {
                 writeCompressedSegment();
                 lastSegPtr = outPtr;
             }
-            if (lengthCounter == width) {lengthCounter = 0;};
+            if (length == width) length = 0;
             singleByte = *outPtr;
         }
         writeCompressedSegment();
@@ -157,7 +159,7 @@ bool PIDFile::save(std::ostream &stream) {
 
         singleByte = *outPtr;
         while (++outPtr < endPtr) {
-            if (singleByte == *outPtr) {
+            if (singleByte == *outPtr && length < 62) {
                 length++;
             } else {
                 writeUncompressedSegment();
@@ -174,15 +176,23 @@ bool PIDFile::save(std::ostream &stream) {
         writeUncompressedPixels();
     }
 
-    if (flags & PID_Flag_OwnPalette && !(flags & PID_Flag_Lights)) {
-        palette -> save(stream);
-    }
+    palette -> save(stream);
 
+    return true;
+}
+
+void PIDFile::rewriteOriginalData() {
     originalFlags = flags;
     originalOffsetX = offsetX;
     originalOffsetY = offsetY;
-
-    return true;
+    if (originalPalette)
+        originalPalette = palette;
+    if (originalData) {
+        for (int i = 0; i < dataSize; i++) {
+            originalData[i] = data[i];
+        }
+    }
+    transformedToPalette = false;
 }
 
 sf::Image PIDFile::makeImage() {
@@ -213,7 +223,8 @@ bool PIDFile::isModified() {
     return (
         flags != originalFlags || 
         offsetX != originalOffsetX || 
-        offsetY != originalOffsetY
+        offsetY != originalOffsetY ||
+        transformedToPalette == true
     );
 }
 
@@ -235,4 +246,54 @@ sf::Image PIDFile::makeImageWithOffsets() {
     newImage.copy(image, absOffsetX + offsetX, absOffsetY + offsetY);
 
     return newImage;
+}
+
+void PIDFile::transformImageToPalette(std::shared_ptr<PIDPalette> outPalette) {
+    if (!palette || palette == outPalette) return;
+
+    /* make a copy of palette and image data only once */
+    if (!originalPalette)
+        originalPalette = palette;
+    if (!originalData) {
+        originalData = new uint8_t[dataSize];
+        for (int i = 0; i < dataSize; i++)
+            originalData[i] = data[i];
+    }
+
+    /* reverting back changes when the palette to transform is the original palette (to avoid degradation of image quality)*/
+    if (outPalette == originalPalette) {
+        for (int i = 0; i < dataSize; i++)
+            data[i] = originalData[i];
+        palette = originalPalette;
+        transformedToPalette = false;
+        resetTexture();
+        return;
+    }
+
+    /* Luv gets much better results than rgb */
+    auto inPaletteLuv = std::make_shared<PaletteLUV>(originalPalette -> getData());
+    auto outPaletteLuv = std::make_shared<PaletteLUV>(outPalette -> getData());
+
+    uint8_t colorTable[256];
+
+    /* could also store these values as a map rather than recalculating for each image - will see later */
+    for (int index = 0; index < 256; index++)
+        colorTable[index] = inPaletteLuv -> getMostSimilarColor(index, outPaletteLuv);
+
+    for (int index = 0; index < dataSize; index++)
+        data[index] = colorTable[originalData[index]];
+    
+    palette = outPalette;
+    transformedToPalette = true;
+    resetTexture();
+}
+
+void PIDFile::resetTransformationToPalette() {
+    if (transformedToPalette) {
+        for (int i = 0; i < dataSize; i++)
+            data[i] = originalData[i];
+        palette = originalPalette;
+        resetTexture();
+        transformedToPalette = false;
+    }
 }

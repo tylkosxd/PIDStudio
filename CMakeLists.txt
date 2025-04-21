@@ -32,6 +32,8 @@ set(
     src/SupportedGame.h
     src/games/Claw.cpp
     src/games/Claw.h
+    src/PaletteLUV.h
+    src/PaletteLUV.cpp
 )
 
 set(

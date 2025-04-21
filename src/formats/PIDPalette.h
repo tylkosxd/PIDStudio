@@ -11,12 +11,12 @@ public:
     explicit PIDPalette(const unsigned char* ptr);
 
     sf::Color getColor(int i, bool treatFirstAsTransparent = true) const;
-    // unsigned char FindColor(sf::Color color);
 
     bool load(std::istream& stream) override;
     bool save(std::ostream& stream) override;
 
     const sf::Texture& getTexture();
+    unsigned char* getData() { return &data[0][0]; }
 
 
 private:

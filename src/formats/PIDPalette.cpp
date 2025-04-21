@@ -2,7 +2,6 @@
 
 #include <algorithm>
 
-
 PIDPalette::PIDPalette(const unsigned char* ptr) {
     std::copy(ptr, ptr+sizeof(data), (unsigned char*)data);
 }
@@ -22,8 +21,7 @@ const sf::Texture& PIDPalette::getTexture() {
         sf::Image img;
         img.create(97, 97);
         for (int y = 0; y < 16; y++) {
-            for (int x = 0; x < 16; x++)
-            {
+            for (int x = 0; x < 16; x++) {
                 for (int i = 0; i < 5; i++)
                     for (int j = 0; j < 5; j++)
                         img.setPixel(x * 6 + i + 1, y * 6 + j + 1, getColor(y * 16 + x, false));

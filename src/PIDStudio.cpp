@@ -34,6 +34,7 @@
 const char APPLICATION_NAME[] = "PIDStudio";
 const char SETTINGS_INI_FILENAME[] = "settings.ini";
 const char ASSET_LIBRARIES_INI_KEY[] = "AssetLibraries";
+const char RECENT_FILES_INI_KEY[] = "RecentFiles";
 const char ASSET_LIBRARY_WINDOW_ID[] = "###AssetLibrary";
 
 template <bool isMultiSelect, Filter... filters>
@@ -183,8 +184,8 @@ int PIDStudio::run() {
                         openPidFileDialog();
                         break;
                     case sf::Keyboard::W:
-                        if (currentlyFocusedFile && !event.key.shift) {
-                            filesToClose.insert(currentlyFocusedFile);
+                        if (currentFile && !event.key.shift) {
+                            filesToClose.insert(currentFile);
                             break;
                         }
                         if (event.key.shift) {
@@ -193,8 +194,8 @@ int PIDStudio::run() {
                         }
                         break;
                     case sf::Keyboard::S:
-                        if (currentlyFocusedFile && currentlyFocusedFile -> isModified() && !event.key.shift) {
-                            saveOpenedFile(currentlyFocusedFile);
+                        if (currentFile && currentFile -> isModified() && !event.key.shift) {
+                            saveOpenedFile(currentFile);
                             break;
                         }
                         if (event.key.shift && canClickSaveAll()) {
@@ -202,7 +203,7 @@ int PIDStudio::run() {
                             break;
                         }
                     case sf::Keyboard::E: /* 'E' for 'Export' */
-                        if (currentlyFocusedFile)
+                        if (currentFile)
                             saveCurrentFileAs();
                         break;
                     default:
@@ -263,18 +264,9 @@ int PIDStudio::run() {
 void PIDStudio::menuBar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu(_("File"))) {
-            if (ImGui::BeginMenu(_("New..."))) {
-                if (ImGui::MenuItemEx(_("Project"), ICON_LC_FOLDER_PLUS, "Ctrl+Shift+N", false, false)) { /* TODO */ }
-                if (ImGui::MenuItemEx(_("File"), ICON_LC_IMAGE_PLUS, "Ctrl+N", false, false)) { /* TODO */ }
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu(_("Open..."))) {
-                if (ImGui::MenuItemEx(_("Project"), ICON_LC_FOLDER_UP, "Ctrl+Shift+O", false, false)) { /* TODO */ }
-                if (ImGui::MenuItemEx(_("File"), ICON_LC_IMAGE_UP, "Ctrl+O")) { 
-                    openPidFileDialog(); 
-                }
-                ImGui::EndMenu();
-            }
+
+            if (ImGui::MenuItemEx(_("Open File..."), ICON_LC_IMAGE_UP, "Ctrl+O")) openPidFileDialog();
+            if (ImGui::MenuItemEx(_("Open Folder..."), ICON_LC_FOLDER_UP, "Ctrl+Shift+O", false, false)) { /* TODO */ }
 
             ImGui::Separator();
 
@@ -282,26 +274,20 @@ void PIDStudio::menuBar() {
 
             ImGui::Separator();
 
-            bool currentFileModified = currentlyFocusedFile && currentlyFocusedFile -> isModified();
-            if (ImGui::MenuItemEx(_("Save"), ICON_LC_SAVE, "Ctrl+S", false, currentFileModified)) {
-                saveOpenedFile(currentlyFocusedFile);
-            }
+            bool currentFileModified = currentFile && currentFile -> isModified();
+            if (ImGui::MenuItemEx(_("Save"), ICON_LC_SAVE, "Ctrl+S", false, currentFileModified))
+                saveOpenedFile(currentFile);
             
-            if (ImGui::MenuItemEx(_("Save as..."), ICON_LC_IMAGE_DOWN, "Ctrl+E")) {
+            if (ImGui::MenuItemEx(_("Save as..."), ICON_LC_IMAGE_DOWN, "Ctrl+E"))
                 saveCurrentFileAs();
-            }
-            if (ImGui::MenuItemEx(_("Save all"), ICON_LC_SAVE_ALL, "Ctrl+Shift+S", false, canClickSaveAll())) { 
+
+            if (ImGui::MenuItemEx(_("Save all"), ICON_LC_SAVE_ALL, "Ctrl+Shift+S", false, canClickSaveAll()))
                 saveAllOpenedFiles();
-            }
 
             ImGui::Separator();
 
-            if (ImGui::BeginMenuEx(_("Recently opened files"), nullptr, false)) {
-                /* TODO */
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenuEx(_("Recently opened projects"), nullptr, false)) {
-                /* TODO */
+            if (ImGui::BeginMenuEx(_("Recently opened files"), nullptr, settings.has(RECENT_FILES_INI_KEY))) {
+                recentlyOpenedContextMenu();
                 ImGui::EndMenu();
             }
 
@@ -320,21 +306,16 @@ void PIDStudio::toolBar()
     ImGui::PushStyleColor(ImGuiCol_Button, 0);
 
     if (ImGui::BeginMenuBar()) {
-
-        ImGui::BeginDisabled();
-        if (ImGui::Button(ICON_LC_IMAGE_PLUS)) { /* TODO */ }
-        ImGui::EndDisabled();
-
         if (ImGui::Button(ICON_LC_IMAGE_UP)) openPidFileDialog();
 
-        if (!currentlyFocusedFile) ImGui::BeginDisabled();
+        if (!currentFile) ImGui::BeginDisabled();
         if (ImGui::Button(ICON_LC_IMAGE_DOWN)) saveCurrentFileAs();
-        if (!currentlyFocusedFile) ImGui::EndDisabled();
+        if (!currentFile) ImGui::EndDisabled();
 
-        bool currentFileModified = currentlyFocusedFile && currentlyFocusedFile -> isModified();
+        bool currentFileModified = currentFile && currentFile -> isModified();
 
         if (!currentFileModified) ImGui::BeginDisabled();
-        if (ImGui::Button(ICON_LC_SAVE)) saveOpenedFile(currentlyFocusedFile);
+        if (ImGui::Button(ICON_LC_SAVE)) saveOpenedFile(currentFile);
         if (!currentFileModified) ImGui::EndDisabled();
 
         bool canSaveAll = canClickSaveAll(); 
@@ -363,7 +344,7 @@ void PIDStudio::preDockedWindows()
 
         // split initial UI layout to specific dockable areas
         dockspaceIdRight = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.25f, nullptr, &dockspaceIdLeft);
-        dockspaceIdRightTop = ImGui::DockBuilderSplitNode(dockspaceIdRight, ImGuiDir_Up, 0.25f, nullptr, &dockspaceIdRightBottom);
+        dockspaceIdRightTop = ImGui::DockBuilderSplitNode(dockspaceIdRight, ImGuiDir_Up, 0.3f, nullptr, &dockspaceIdRightBottom);
 
         ImGui::SetNextWindowDockID(dockspaceIdRightTop, ImGuiDir_Up);
     }
@@ -401,12 +382,11 @@ void PIDStudio::preDockedWindows()
 }
 
 void PIDStudio::openedFilesWindows() {
-    for (const std::shared_ptr<PIDFile>& file : openedFiles) {
-        auto result = openedFileWindow(file);
-
-        if (result == CLOSE) {
-            filesToClose.insert(file);
+    if (!filesToClose.empty()) {
+        for (const auto& file : filesToClose) {
+            closeFile(file);
         }
+        filesToClose.clear();
     }
 
     if (openedLibraryFile) {
@@ -424,11 +404,12 @@ void PIDStudio::openedFilesWindows() {
         }
     }
 
-    if (!filesToClose.empty()) {
-        for (const auto& file : filesToClose) {
-            closeFile(file);
+    for (const auto& file : openedFiles) {
+        auto result = openedFileWindow(file);
+
+        if (result == CLOSE) {
+            filesToClose.insert(file);
         }
-        filesToClose.clear();
     }
 }
 
@@ -461,7 +442,7 @@ PIDStudio::OPENED_FILE_WINDOW_RESULT PIDStudio::openedFileWindow(const std::shar
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (ImGui::IsWindowAppearing()) {
         ImGui::SetWindowDock(window, dockspaceId, ImGuiDir_Right);
-        currentlyFocusedFile = file;
+        currentFile = file;
     }
     if (ImGui::IsWindowFocused()) {
         currentPalette = file->getPalette();
@@ -477,62 +458,70 @@ PIDStudio::OPENED_FILE_WINDOW_RESULT PIDStudio::openedFileWindow(const std::shar
         if (ImGui::BringFocusTo(window)) {
             bringFocusTo = nullptr;
             currentPalette = file->getPalette();
-            currentlyFocusedFile = file;
+            currentFile = file;
         }
     }
 
     return !didNotCloseWindow ? CLOSE : didClickKeepLibraryFileOpen ? KEEP_OPEN : NONE;
 }
 
-std::string PIDStudio::resetPaletteComboBox() {
-    for (const auto& [key, palette] : (libraryPalettes)) {
-        libraryPalettesSelectables[key] = false;
+
+std::string PIDStudio::resetPaletteComboSelect() {
+    for (const auto& [key, palette] : (libPalettes)) {
+        libPalettesComboS[key] = false;
     }
     for (const auto& [key, palette] : (customPalettes)) {
-        customPalettesSelectables[key] = false;
+        customPalettesComboS[key] = false;
     }
-    ownPaletteSelectable = false;
+    ownPaletteComboS = false;
 
-    if (currentlyFocusedFile) {
-        if ((currentlyFocusedFile -> getFlags()) & PID_Flag_Lights) {
-            libraryPalettesSelectables[defaultPaletteName] = true;
+    if (currentFile) {
+        if ((currentFile -> getFlags()) & PID_Flag_Lights) {
+            libPalettesComboS[defaultPaletteName] = true;
             return defaultPaletteName;
-        } else if (currentPalette == (currentlyFocusedFile -> getOwnPalette())) {
-            ownPaletteSelectable = true;
+        }
+        if (currentPalette == (currentFile -> getOwnPalette())) {
+            ownPaletteComboS = true;
             return _("Own palette");
         }
     }
-    for (const auto& [key, palette] : (libraryPalettes)) {
-        if (palette == currentPalette) {
-            libraryPalettesSelectables[key] = true;
-            return key;
+        for (const auto& [key, palette] : (libPalettes)) {
+            if (palette == currentPalette) {
+                libPalettesComboS[key] = true;
+                return key;
+            }
         }
-    }
-    for (const auto& [key, palette] : (customPalettes)) {
-        if (palette == currentPalette) {
-            libraryPalettesSelectables[key] = true;
-            return key;
+        for (const auto& [key, palette] : (customPalettes)) {
+            if (palette == currentPalette) {
+                libPalettesComboS[key] = true;
+                return key;
+            }
         }
-    }
-    libraryPalettesSelectables[defaultPaletteName] = true;
+    libPalettesComboS[defaultPaletteName] = true;
     return defaultPaletteName;
 }
 
-void PIDStudio::paletteComboBox() {
+void PIDStudio::paletteComboSelect() {
     
-    std::string previewPalette = resetPaletteComboBox();
+    static std::string preview;
 
-    if (ImGui::BeginCombo("\0", previewPalette.c_str(), ImGuiComboFlags_HeightLarge)) {
+    if (currentFile && currentFile -> isTransformedToPalette()) {
+        ImGui::BeginDisabled();
+    } else {
+        preview = resetPaletteComboSelect();
+    } 
 
-        for (const auto& [key, palette] : (libraryPalettes)) {
-            if (ImGui::Selectable(key.c_str(), &libraryPalettesSelectables[key])) {
-                if (currentlyFocusedFile && key == defaultPaletteName.c_str()) {
-                    currentlyFocusedFile -> setFlag(PID_Flag_Lights, true);
-                    currentlyFocusedFile -> resetTexture();
+    if (ImGui::BeginCombo(_("From"), preview.c_str(), ImGuiComboFlags_HeightLarge)) {
+
+        for (const auto& [key, palette] : (libPalettes)) {
+            if (ImGui::Selectable(key.c_str(), &libPalettesComboS[key])) {
+                if (currentFile && key == defaultPaletteName.c_str()) {
+                    currentFile -> setFlag(PID_Flag_Lights, true);
+                    currentFile -> resetTexture();
                 } else {
-                    if (currentlyFocusedFile) {
-                        currentlyFocusedFile -> setFlag(PID_Flag_Lights, false);
-                        currentlyFocusedFile -> setPalette(palette);
+                    if (currentFile) {
+                        currentFile -> setFlag(PID_Flag_Lights, false);
+                        currentFile -> setPalette(palette);
                     }
                     currentPalette = palette;
                 }
@@ -541,21 +530,83 @@ void PIDStudio::paletteComboBox() {
 
         ImGui::Separator();
 
-        if (currentlyFocusedFile && currentlyFocusedFile -> getOwnPalette()) {
-            if (ImGui::Selectable(_("Own palette"), &ownPaletteSelectable)) {
-                currentlyFocusedFile -> setPalette(currentlyFocusedFile -> getOwnPalette());
-                currentlyFocusedFile -> setFlag(PID_Flag_Lights, false);
-                currentPalette = currentlyFocusedFile -> getOwnPalette();
+        if (currentFile && currentFile -> getOwnPalette()) {
+            if (ImGui::Selectable(_("Own palette"), &ownPaletteComboS)) {
+                currentFile -> setPalette(currentFile -> getOwnPalette());
+                currentFile -> setFlag(PID_Flag_Lights, false);
+                currentPalette = currentFile -> getOwnPalette();
             }
         }
 
         for (const auto& [key, palette] : (customPalettes)) {
-            if (ImGui::Selectable(key.c_str(), &customPalettesSelectables[key])) {
-                if (currentlyFocusedFile) {
-                    currentlyFocusedFile -> setFlag(PID_Flag_Lights, false);
-                    currentlyFocusedFile -> setPalette(palette);
+            if (ImGui::Selectable(key.c_str(), &customPalettesComboS[key])) {
+                if (currentFile) {
+                    currentFile -> setFlag(PID_Flag_Lights, false);
+                    currentFile -> setPalette(palette);
                 }
                 currentPalette = palette;
+            }
+        }
+
+        ImGui::Separator();
+
+        bool oneWaySelectable = false;
+        if (ImGui::Selectable(_("Load from file"), &oneWaySelectable))
+            loadPaletteFromFile();
+
+        ImGui::EndCombo();
+    }
+
+    if (currentFile && currentFile -> isTransformedToPalette()) ImGui::EndDisabled();
+
+}
+
+
+void PIDStudio::resetPaletteComboTransform() {
+    for (const auto& [key, palette] : (libPalettes)) {
+        libPalettesComboT[key] = false;
+    }
+    for (const auto& [key, palette] : (customPalettes)) {
+        customPalettesComboT[key] = false;
+    }
+    ownPaletteComboT = false;
+}
+
+void PIDStudio::paletteComboTransform() {
+
+    static std::string selectHelper;
+    static std::string preview = " ";
+
+    if (ImGui::BeginCombo(_("To"), preview.c_str(), ImGuiComboFlags_HeightLarge)) {
+
+        for (const auto& [key, palette] : (libPalettes)) {
+            if (ImGui::Selectable(key.c_str(), &libPalettesComboT[key])) {
+                selectHelper = key;
+                resetPaletteComboTransform();
+                libPalettesComboT[selectHelper] = true;
+                toTransformPalette = palette;
+                preview = key;
+            }
+        }
+
+        ImGui::Separator();
+
+        if (currentFile && currentFile -> getOwnPalette()) {
+            if (ImGui::Selectable(_("Own palette"), &ownPaletteComboT)) {
+                resetPaletteComboTransform();
+                ownPaletteComboT = true;
+                toTransformPalette = currentFile -> getOwnPalette();
+                preview = _("Own palette");
+            }
+        }
+
+        for (const auto& [key, palette] : (customPalettes)) {
+            if (ImGui::Selectable(key.c_str(), &customPalettesComboT[key])) {
+                selectHelper = key;
+                resetPaletteComboTransform();
+                customPalettesComboT[selectHelper] = true;
+                toTransformPalette = palette;
+                preview = key;
             }
         }
 
@@ -572,14 +623,36 @@ void PIDStudio::paletteComboBox() {
 void PIDStudio::paletteWindow() {
     if (ImGui::Begin(_("Palette"))) {
         auto palette = defaultPalette;
-        bool hasLightsFlag = currentlyFocusedFile && (currentlyFocusedFile -> getFlags() & PID_Flag_Lights);
-        if (currentPalette && !(hasLightsFlag)) {
-            palette = currentPalette;
+        bool noLightsFlag = !(currentFile && (currentFile -> getFlags() & PID_Flag_Lights));
+        if (currentPalette && noLightsFlag) palette = currentPalette;
+
+        ImGui::CenteredImageHorizontal(palette->getTexture());
+
+        paletteComboSelect();
+
+        if (!currentFile) ImGui::BeginDisabled();
+
+        paletteComboTransform();
+
+        if (ImGui::Button(ICON_LC_SHUFFLE)) {
+            if (currentFile && toTransformPalette) {
+                currentFile -> transformImageToPalette(toTransformPalette);
+                currentPalette = toTransformPalette;
+            }
         }
+        ImGui::SameLine();
+        ImGui::Text("%s", _("Transform "));
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_LC_ROTATE_CCW)) {
+            if (currentFile) {
+                currentFile -> resetTransformationToPalette();
+                currentPalette = currentFile -> getPalette();
+            }
+        }
+        ImGui::SameLine();
+        ImGui::Text("%s", _("Reset"));
 
-        paletteComboBox();
-
-        ImGui::CenteredImage(palette->getTexture(), 0.0f, 20.0f);
+        if (!currentFile) ImGui::EndDisabled();
 
         if (ImGui::BeginPopupForLastItem("Palette")) {
             if (ImGui::MenuItem(_("Save to file"))) savePaletteToFile();
@@ -591,31 +664,31 @@ void PIDStudio::paletteWindow() {
 
 
 void PIDStudio::offsetsWindow() {
-    if (currentlyFocusedFile) {
-        inputIntOffsetX = currentlyFocusedFile->getOffsetX();
-        inputIntOffsetY = currentlyFocusedFile->getOffsetY();
+    if (currentFile) {
+        inputIntOffsetX = currentFile->getOffsetX();
+        inputIntOffsetY = currentFile->getOffsetY();
     }
     if (ImGui::Begin(_("Offsets"))) {
-        if (currentlyFocusedFile) {
-            int width = currentlyFocusedFile->getWidth();
-            int height = currentlyFocusedFile->getHeight();
+        if (currentFile) {
+            int width = currentFile->getWidth();
+            int height = currentFile->getHeight();
             if (ImGui::InputInt(_("Off. X"), &inputIntOffsetX, 1, 5)) {
                 if (inputIntOffsetX > width) inputIntOffsetX = width;
                 if (inputIntOffsetX < -width) inputIntOffsetX = -width;
-                currentlyFocusedFile->setOffsetX(inputIntOffsetX);
+                currentFile->setOffsetX(inputIntOffsetX);
             }
             ImGui::SameLine();
             if (ImGui::Button(ICON_LC_REFRESH_CW)) {
-                currentlyFocusedFile->setOffsetX(currentlyFocusedFile->getOriginalOffsetX());
+                currentFile->setOffsetX(currentFile->getOriginalOffsetX());
             }
             if (ImGui::InputInt(_("Off. Y"), &inputIntOffsetY, 1, 5)) {
                 if (inputIntOffsetY > height) inputIntOffsetY = height;
                 if (inputIntOffsetY < -height) inputIntOffsetY = -height;
-                currentlyFocusedFile->setOffsetY(inputIntOffsetY);
+                currentFile->setOffsetY(inputIntOffsetY);
             }
             ImGui::SameLine();
             if (ImGui::Button(ICON_LC_REFRESH_CCW)) {
-                currentlyFocusedFile->setOffsetY(currentlyFocusedFile->getOriginalOffsetY());
+                currentFile->setOffsetY(currentFile->getOriginalOffsetY());
             }
         } else {
             ImGui::Text("%s", _("No opened files."));
@@ -625,33 +698,33 @@ void PIDStudio::offsetsWindow() {
 }
 
 void PIDStudio::flagsWindow(){
-    if (currentlyFocusedFile) {
-        checkboxTransparencyFlag = currentlyFocusedFile->getFlags() & PID_Flag_Transparency;
-        checkboxVideoMemoryFlag = currentlyFocusedFile->getFlags() & PID_Flag_VideoMemory;
-        checkboxSystemMemoryFlag = currentlyFocusedFile->getFlags() & PID_Flag_SystemMemory;
-        checkboxCompressionFlag = currentlyFocusedFile->getFlags() & PID_Flag_Compression;
+    if (currentFile) {
+        checkboxTransparencyFlag = currentFile->getFlags() & PID_Flag_Transparency;
+        checkboxVideoMemoryFlag = currentFile->getFlags() & PID_Flag_VideoMemory;
+        checkboxSystemMemoryFlag = currentFile->getFlags() & PID_Flag_SystemMemory;
+        checkboxCompressionFlag = currentFile->getFlags() & PID_Flag_Compression;
     }
     if (ImGui::Begin(_("Flags"))) {
-        if (currentlyFocusedFile) {
+        if (currentFile) {
             if (ImGui::Checkbox(_("Transparency"), &checkboxTransparencyFlag))
-                currentlyFocusedFile -> setFlag(PID_Flag_Transparency, checkboxTransparencyFlag);
+                currentFile -> setFlag(PID_Flag_Transparency, checkboxTransparencyFlag);
 
                 /* the 2 below are mutualy exclusive */
             if (ImGui::Checkbox(_("Use video memory"), &checkboxVideoMemoryFlag)) {
-                currentlyFocusedFile -> setFlag(PID_Flag_VideoMemory, checkboxVideoMemoryFlag);
+                currentFile -> setFlag(PID_Flag_VideoMemory, checkboxVideoMemoryFlag);
                 if (checkboxVideoMemoryFlag) 
-                    currentlyFocusedFile -> setFlag(PID_Flag_SystemMemory, false);
+                    currentFile -> setFlag(PID_Flag_SystemMemory, false);
             }
             if (ImGui::Checkbox(_("Use system memory"), &checkboxSystemMemoryFlag)) {
-                currentlyFocusedFile -> setFlag(PID_Flag_SystemMemory, checkboxSystemMemoryFlag);
+                currentFile -> setFlag(PID_Flag_SystemMemory, checkboxSystemMemoryFlag);
                 if (checkboxSystemMemoryFlag)
-                    currentlyFocusedFile -> setFlag(PID_Flag_VideoMemory, false);
+                    currentFile -> setFlag(PID_Flag_VideoMemory, false);
             }
 
             /* Mirror and Invert flags are not supported in Claw, so let's omit them by now*/
 
             if (ImGui::Checkbox(_("Compression"), &checkboxCompressionFlag))
-                currentlyFocusedFile -> setFlag(PID_Flag_Compression, checkboxCompressionFlag);
+                currentFile -> setFlag(PID_Flag_Compression, checkboxCompressionFlag);
 
             /* Lights flag is set in the palette dock, and the "OwnPalette" will be set by default when saving the file*/
 
@@ -664,13 +737,13 @@ void PIDStudio::flagsWindow(){
 
 void PIDStudio::metadataWindow() {
     if (ImGui::Begin(_("Data"))) {
-        if (currentlyFocusedFile) {
-            int* userData = currentlyFocusedFile->getUserData();
+        if (currentFile) {
+            int* userData = currentFile->getUserData();
             ImGui::Text("%s: %dx%d\n%s: %d\n%s: %d, %d",
                 _("Size"),
-                currentlyFocusedFile -> getWidth(),
-                currentlyFocusedFile -> getHeight(),
-                _("Magic number"), currentlyFocusedFile->getMagicNumber(),
+                currentFile -> getWidth(),
+                currentFile -> getHeight(),
+                _("Magic number"), currentFile->getMagicNumber(),
                 _("User values"), userData[0], userData[1]
             );
         } else {
@@ -739,25 +812,7 @@ void PIDStudio::openPidFileDialog() {
     std::string filePath;
 
     while (std::getline(stream, filePath, '|')) {
-
-        std::filesystem::path path(filePath);
-        if (isFileAlreadyOpen(path)) continue;
-
-        std::shared_ptr<AssetLibraryTreeNode> libraryFileNode;
-        for (auto& library : assetLibraries) {
-            if (library->hasFilepath(path, libraryFileNode)) {
-                openLibraryFile(library, libraryFileNode);
-                break;
-            }
-        }
-
-        if (libraryFileNode) continue;
-
-        std::shared_ptr<PIDFile> file = std::make_shared<PIDFile>(this);
-        if (file->loadFromFile(path)) {
-            bringFocusTo = file.get();
-            openedFiles.emplace_back(file);
-        }
+        openPidFile(filePath);
     }
 }
 
@@ -852,7 +907,7 @@ void PIDStudio::addLibrary(std::filesystem::path& path, const std::shared_ptr<Su
 
             file->setPalette(palette);
 
-            if (file == currentlyFocusedFile) {
+            if (file == currentFile) {
                 currentPalette = palette;
             }
         }
@@ -862,7 +917,7 @@ void PIDStudio::addLibrary(std::filesystem::path& path, const std::shared_ptr<Su
 void PIDStudio::mapPalette(
     std::filesystem::path path,
     std::string libraryName,
-    std::shared_ptr<PIDPalette> palette,
+    std::shared_ptr<PIDPalette>& palette,
     bool isNotFromLibrary
 ) {
     std::string name = libraryName;
@@ -879,9 +934,10 @@ void PIDStudio::mapPalette(
             name += "Unknown";
         }
     }
-    if (!isNotFromLibrary && !libraryPalettes.contains(name)) {
-        libraryPalettes.insert({name, palette});
-        libraryPalettesSelectables.insert({name, false});
+    if (!isNotFromLibrary && !libPalettes.contains(name)) {
+        libPalettes.insert({name, palette});
+        libPalettesComboS.insert({name, false});
+        libPalettesComboT.insert({name, false});
     } else if (isNotFromLibrary) {
         int counter = 0;
         std::string finalName = name;
@@ -890,24 +946,26 @@ void PIDStudio::mapPalette(
             finalName = name + " #" + std::to_string(counter);
         }
         customPalettes.insert({finalName, palette});
-        customPalettesSelectables.insert({finalName, false});
+        customPalettesComboS.insert({finalName, false});
+        customPalettesComboT.insert({name, false});
     }
 }
 
 void PIDStudio::closeContextMenu() {
     bool isAnyTabOpen = false;
     std::string closeFile = _("Close");
-    if (currentlyFocusedFile) {
+    if (currentFile) {
         isAnyTabOpen = true;
-        closeFile += ' ' + currentlyFocusedFile->getName();
+        closeFile += ' ' + currentFile->getName();
     }
 
-    if (ImGui::MenuItem(closeFile.c_str(), "Ctrl+W", false, isAnyTabOpen)) { filesToClose.insert(currentlyFocusedFile); }
+    if (ImGui::MenuItem(closeFile.c_str(), "Ctrl+W", false, isAnyTabOpen)) { filesToClose.insert(currentFile); }
     if (ImGui::MenuItem(_("Close all"), "Ctrl+Shift+W", false, isAnyTabOpen)) { closeAllFiles(); }
 }
 
-void PIDStudio::saveOpenedFile(std::shared_ptr<PIDFile> file) {
+void PIDStudio::saveOpenedFile(std::shared_ptr<PIDFile>& file) {
     file -> saveToFile(file -> getPath());
+    file -> rewriteOriginalData();
 }
 
 void PIDStudio::keepLibraryFileOpened() {
@@ -924,13 +982,14 @@ void PIDStudio::closeFile(const std::shared_ptr<PIDFile>& file) {
             file -> saveToFile(file -> getPath());
         }
     }
+    if (file == currentFile) {
+        currentFile.reset();
+    }
     if (file == openedLibraryFile) {
         openedLibraryFile.reset();
     } else {
         openedFiles.erase(std::find(openedFiles.begin(), openedFiles.end(), file));
     }
-
-    if (currentlyFocusedFile == file) currentlyFocusedFile.reset();
 }
 
 void PIDStudio::closeAllFiles() {
@@ -944,7 +1003,7 @@ void PIDStudio::closeAllFiles() {
 }
 
 void PIDStudio::saveAllOpenedFiles() {
-    for (const auto& file : openedFiles) {
+    for (auto& file : openedFiles) {
         if (file -> isModified()) 
             saveOpenedFile(file);
     }
@@ -956,7 +1015,7 @@ void PIDStudio::saveAllOpenedFiles() {
 }
 
 bool PIDStudio::canClickSaveAll() {
-    if (!currentlyFocusedFile) return false;
+    if (!currentFile) return false;
 
     if (openedLibraryFile && openedLibraryFile -> isModified()) return true;
 
@@ -966,6 +1025,28 @@ bool PIDStudio::canClickSaveAll() {
     }
 
     return false;
+}
+
+void PIDStudio::openPidFile(std::string filePath) {
+    std::filesystem::path path(filePath);
+    if (isFileAlreadyOpen(path)) return;
+
+    std::shared_ptr<AssetLibraryTreeNode> libraryFileNode;
+    for (auto& library : assetLibraries) {
+        if (library->hasFilepath(path, libraryFileNode)) {
+            openLibraryFile(library, libraryFileNode);
+            break;
+        }
+    }
+
+    if (libraryFileNode) return;
+
+    std::shared_ptr<PIDFile> file = std::make_shared<PIDFile>(this);
+    if (file->loadFromFile(path)) {
+        bringFocusTo = file.get();
+        openedFiles.emplace_back(file);
+        saveToRecentlyOpened(file->getPath().string());
+    }
 }
 
 void PIDStudio::openLibraryFile(
@@ -978,7 +1059,6 @@ void PIDStudio::openLibraryFile(
         bringFocusTo = openedFile;
         return;
     }
-
 
     auto file = std::make_shared<PIDFile>(this);
     if (file->loadFromFile(node->path)) {
@@ -1005,6 +1085,8 @@ void PIDStudio::openLibraryFile(
             openedFiles.emplace_back(openedLibraryFile);
             openedLibraryFile.reset();
         }
+
+        saveToRecentlyOpened(file->getPath().string());
     }
 }
 
@@ -1101,11 +1183,11 @@ void PIDStudio::loadPaletteFromFile() {
     currentPalette->loadFromFile(selectedFile);
     mapPalette(selectedFile, "", currentPalette, true);
 
-    if (!currentlyFocusedFile) return;
+    if (!currentFile) return;
 
-    currentlyFocusedFile->setPalette(currentPalette);
+    currentFile->setPalette(currentPalette);
 
-    if (currentlyFocusedFile == openedLibraryFile) {
+    if (currentFile == openedLibraryFile) {
         keepLibraryFileOpened();
     }
 }
@@ -1119,13 +1201,13 @@ void PIDStudio::savePaletteToFile() {
 }
 
 void PIDStudio::saveCurrentFileAs() {
-    if (!currentlyFocusedFile) return;
+    if (!currentFile) return;
 
     const char* selectedFile = saveFileDialog<pidFilter, pngFilter>(_("Image Files"));
 
     if (!selectedFile) return;
 
-    currentlyFocusedFile->saveToFile(selectedFile);
+    currentFile->saveToFile(selectedFile);
 }
 
 void PIDStudio::saveNodeFileAs(
@@ -1159,4 +1241,33 @@ void PIDStudio::saveAllFilesAs(
     if (!selectedFolder) {return;}
 
     forEachInLibraryNode(library, selectedNode, "saveAs", format, selectedFolder, compression);
+}
+
+void PIDStudio::saveToRecentlyOpened(std::string path) {
+    for (int i = 8; i >= 0; i--)
+        settings[RECENT_FILES_INI_KEY][std::to_string(i+1)] = settings[RECENT_FILES_INI_KEY].get(std::to_string(i));
+
+    settings[RECENT_FILES_INI_KEY]["0"] = path;
+}
+
+void PIDStudio::recentlyOpenedContextMenu() {
+    for (int i = 0; i < 10; i++) {
+        std::filesystem::path filePath = settings[RECENT_FILES_INI_KEY][std::to_string(i)];
+        if (filePath.empty()) continue;
+        std::filesystem::path parentPath = filePath.parent_path();
+        std::string menuLabel;
+        for (auto const& library : settings[ASSET_LIBRARIES_INI_KEY]) {
+            while (parentPath.string().length() >= library.second.length()) {
+                if (parentPath.string() == library.second) {
+                    menuLabel = std::to_string(i+1) + ". " + "[" + library.first + "]"
+                        + filePath.string().substr(library.second.length(), filePath.string().length());
+                    break;
+                }
+                parentPath = parentPath.parent_path();
+            }
+        }
+        if (menuLabel.empty()) menuLabel = std::to_string(i+1) + ". " + filePath.string();
+        if (ImGui::MenuItem(menuLabel.c_str(), nullptr, false))
+            openPidFile(filePath.string());
+    }
 }
