@@ -12,18 +12,24 @@ set(
     src/PIDStudio.h
     src/File.cpp
     src/File.h
-    src/Filters.h
     src/String.cpp
     src/String.h
+    src/Filesystem.cpp
+    src/Filesystem.h
     src/ImGuiExtensions.cpp
     src/ImGuiExtensions.h
     src/formats/PCXFile.cpp
     src/formats/PCXFile.h
+    src/formats/BMPFile.cpp
+    src/formats/BMPFile.h
     src/formats/PIDFile.cpp
     src/formats/PIDFile.h
     src/formats/PIDPalette.cpp
     src/formats/PIDPalette.h
+    src/formats/PNGFile.h
+    src/formats/PNGFile.cpp
     src/FilesystemWatcher.h
+    src/FilesystemWatcher.cpp
     src/AssetLibrary.cpp
     src/AssetLibrary.h
     src/Project.cpp
@@ -34,6 +40,14 @@ set(
     src/games/Claw.h
     src/PaletteLUV.h
     src/PaletteLUV.cpp
+    src/gui/GUI.h
+    src/gui/GUI.cpp
+    src/gui/Dialogs.h
+    src/gui/Dialogs.cpp
+    src/Batch.h
+    src/Batch.cpp
+    src/PaletteManager.h
+    src/PaletteManager.cpp
 )
 
 set(
@@ -115,6 +129,7 @@ endif (UNIX)
 if (MSVC)
     set_target_properties(
         ${PROJECT_NAME} PROPERTIES
+        LINK_FLAGS "/SUBSYSTEM:windows /ENTRY:mainCRTStartup"
         VS_DEBUGGER_WORKING_DIRECTORY "$(ProjectDir)..\\")
 endif (MSVC)
 

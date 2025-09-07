@@ -1,9 +1,18 @@
 #include "File.h"
 
-bool File::loadFromFile(const std::filesystem::path& path)
-{
+bool File::loadFromFile(const std::filesystem::path& path) {
     try {
         std::ifstream stream(path, std::ios_base::binary | std::ios_base::in);
+        return loadFromStream(stream);
+    } catch (...) {
+        return false;
+    }
+}
+
+bool File::loadFromFilePartially(const std::filesystem::path& path, std::streamoff offset, std::ios_base::seekdir dir) {
+    try {
+        std::ifstream stream(path, std::ios_base::binary | std::ios_base::in);
+        stream.seekg(offset, dir);
         return loadFromStream(stream);
     } catch (...) {
         return false;

@@ -5,23 +5,26 @@
 #include "formats/PCXFile.h"
 #include "SupportedGame.h"
 #include "String.h"
+#include "gui/GUI.h"
 
-void palFileHandler(const std::shared_ptr<AssetLibraryTreeNode> &node) {
+#define PCX_PAL_OFFSET -768
+
+void palFileHandler(const std::shared_ptr<TreeNodeBase> &node) {
     node->palette = std::make_shared<PIDPalette>();
     if (node->palette->loadFromFile(node->path)) {
         node->parent->palette = node->palette;
     }
 }
 
-void pcxFileHandler(const std::shared_ptr<AssetLibraryTreeNode> &node) {
-    std::shared_ptr<PCXFile> pcxFile = std::make_shared<PCXFile>();
-    if (pcxFile->loadFromFile(node->path)) {
-        node->palette = pcxFile->getPalette();
+void pcxFileHandler(const std::shared_ptr<TreeNodeBase> &node) {
+    node->palette = std::make_shared<PIDPalette>();
+    if (node->palette->loadFromFilePartially(node->path, PCX_PAL_OFFSET, std::ios_base::end)) {
         node->parent->palette = node->palette;
     }
+    node->isHidden = false;
 }
 
-void pidFileHandler(const std::shared_ptr<AssetLibraryTreeNode> &node) {
+void pidFileHandler(const std::shared_ptr<TreeNodeBase> &node) {
     node->isHidden = false;
 }
 
@@ -35,13 +38,10 @@ AssetLibrary::AssetLibrary(
     PIDStudio *app,
     const std::filesystem::path &path,
     const std::shared_ptr<SupportedGame> &game
-) : FilesystemWatcher<AssetLibraryTreeNode>(path), app(app), game(game) {}
+) : FilesystemWatcher(app, path), game(game) {}
 
-void AssetLibrary::populateTree(
-    const std::filesystem::path &rootPath,
-    const std::shared_ptr<AssetLibraryTreeNode> &rootNode
-) {
-    FilesystemWatcher::populateTree(rootPath, rootNode);
+void AssetLibrary::populateTree() {
+    FilesystemWatcher::populateTree();
     game->initializeLibrary(getRoot());
 }
 
@@ -49,7 +49,7 @@ bool AssetLibrary::isFileTypeSupported(std::string extension) {
     return supportedFileTypes.contains(extension);
 }
 
-void AssetLibrary::processFileNode(const std::shared_ptr<AssetLibraryTreeNode> &childNode) {
+void AssetLibrary::processFileNode(const std::shared_ptr<TreeNodeBase> &childNode) {
     std::string ext = childNode->path.extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), charToLower);
 
@@ -59,17 +59,17 @@ void AssetLibrary::processFileNode(const std::shared_ptr<AssetLibraryTreeNode> &
     FilesystemWatcher::processFileNode(childNode);
 }
 
-void AssetLibrary::displayContextMenu(const std::shared_ptr<AssetLibraryTreeNode> &node) {
-    app->libraryEntryContextMenu(shared_from_this(), node, isLeaf(node), isRoot(node));
+void AssetLibrary::displayContextMenu(const std::shared_ptr<TreeNodeBase> &node) {
+    UI::libraryEntryContextMenu(app, shared_from_this(), node);
 }
 
-void AssetLibrary::openLeafNode(const std::shared_ptr<AssetLibraryTreeNode> &node, bool inSeparateWindow) {
-    app->openLibraryFile(shared_from_this(), node, inSeparateWindow);
+void AssetLibrary::openLeafNode(const std::shared_ptr<TreeNodeBase> &node) {
+    app->openImageFile(node->path, inferPalette(node));
 }
 
 bool AssetLibrary::hasFilepath(
     const std::filesystem::path &filepath,
-    std::shared_ptr<AssetLibraryTreeNode> &outFoundNode
+    std::shared_ptr<TreeNodeBase> &outFoundNode
 ) {
     const std::filesystem::path &path = getPath();
 
@@ -87,9 +87,9 @@ bool AssetLibrary::hasFilepath(
     return isFilepathWithinLibrary && outFoundNode;
 }
 
-std::shared_ptr<PIDPalette> AssetLibrary::inferPalette(const std::shared_ptr<AssetLibraryTreeNode> &node) {
-    std::shared_ptr<PIDPalette> palette = node->palette;
-    std::shared_ptr<AssetLibraryTreeNode> parent = node->parent;
+std::shared_ptr<PIDPalette> AssetLibrary::inferPalette(const std::shared_ptr<TreeNodeBase> &node) {
+    auto palette = node->palette;
+    auto parent = node->parent;
 
     while (parent && !palette) {
         palette = parent->palette;

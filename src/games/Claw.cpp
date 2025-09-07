@@ -2,10 +2,11 @@
 
 #include "../PIDStudio.h"
 #include "../formats/PIDPalette.h"
+#include "../String.h"
 
 #include "../assets/claw_game.pal.h"
 
-void Claw::initializeStatesPalettes(const std::shared_ptr<AssetLibraryTreeNode>& statesDirectory) {
+void Claw::initializeStatesPalettes(const std::shared_ptr<TreeNodeBase>& statesDirectory) {
     static const char* attractScreensName[] = { "ATTRACT", "SCREENS", nullptr };
     auto attractScreensDirectory = statesDirectory->resolve(attractScreensName);
 
@@ -43,27 +44,28 @@ void Claw::initializeStatesPalettes(const std::shared_ptr<AssetLibraryTreeNode>&
     app -> mapPalette("BOOTY", name, bootyDirectory->palette);
 }
 
-void Claw::initializeLibrary(const std::shared_ptr<AssetLibraryTreeNode>& root) {
+void Claw::initializeLibrary(const std::shared_ptr<TreeNodeBase>& root) {
     SupportedGame::initializeLibrary(root);
 
     static auto gamePalette = std::make_shared<PIDPalette>(CLAW_GAME_PAL);
+    app -> mapPalette("GAME", name, gamePalette);
 
     for (const auto& node : root->children) {
         switch (charToLower(node->name[0])) {
-        case 'g': // GAME
-        {
+
+        case 'g': { // GAME
             static const char* imagesLightfxName[] = { "IMAGES", "LIGHTFX", 0 };
             const auto& imagesLightfxDir = node->resolve(imagesLightfxName);
-            if (imagesLightfxDir) {
-                imagesLightfxDir->palette = app->getDefaultPalette();
-            }
-        } // fall-through
+            if (imagesLightfxDir)
+                imagesLightfxDir->palette = app->defaultPalette;
+            // fall-through
+        }
+
         case 'c': // CLAW
             node->palette = gamePalette;
-            app -> mapPalette("GAME", name, node->palette);
             break;
-        case 'l': // LEVELX
-        {
+
+        case 'l': { // LEVELX
             const auto& paletteDir = node->resolve("PALETTES");
             if (paletteDir) {
                 node->palette = paletteDir->palette;
@@ -71,9 +73,11 @@ void Claw::initializeLibrary(const std::shared_ptr<AssetLibraryTreeNode>& root) 
             }
             break;
         }
+            
         case 's': // STATES
             initializeStatesPalettes(node);
             break;
+        
         }
     }
 }

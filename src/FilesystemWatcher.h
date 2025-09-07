@@ -5,25 +5,31 @@
 
 #include "efsw/efsw.hpp"
 
-template<typename Node>
-struct TreeNodeBase {
-    std::shared_ptr<Node> parent;
-    std::string name;
-    std::vector<std::shared_ptr<Node>> children;
-    std::filesystem::path path;
-    bool isHidden = true;
+class PIDStudio;
+class PIDPalette;
 
-    std::shared_ptr<Node> resolve(const char* path);
-    std::shared_ptr<Node> resolve(const char** path);
+struct TreeNodeBase {
+    std::shared_ptr<TreeNodeBase> parent;
+    std::string name;
+    std::vector<std::shared_ptr<TreeNodeBase>> children;
+    std::filesystem::path path;
+    std::shared_ptr<PIDPalette> palette;
+
+    bool isHidden = true;
+    bool isLeaf = false;
+    bool isRoot = false;
+
+    std::shared_ptr<TreeNodeBase> resolve(const char* path);
+    std::shared_ptr<TreeNodeBase> resolve(const char** path);
 };
 
-template<typename Node>
 class FilesystemWatcher : public efsw::FileWatchListener {
 public:
-    explicit FilesystemWatcher(const std::filesystem::path& path);
+    explicit FilesystemWatcher(PIDStudio* app, const std::filesystem::path& path);
 
     void rebuildTree();
     virtual void displayTree();
+    void deleteNode(const std::shared_ptr<TreeNodeBase>&);
 
     void handleFileAction(
         efsw::WatchID watchId,
@@ -31,30 +37,24 @@ public:
         const std::string &filename,
         efsw::Action action,
         std::string oldFilename
-    ) override;
+    ) override { requiresRebuilding = true; };
 
-    inline bool isLeaf(const std::shared_ptr<Node>& node) { return node->children.empty(); }
-    inline bool isRoot(const std::shared_ptr<Node>& node) { return node == root; }
-    std::filesystem::path getRootPath() const { return path; }
+    inline const std::filesystem::path& getPath() const { return path; }
+
 protected:
-    virtual void populateTree(
-        const std::filesystem::path& rootPath,
-        const std::shared_ptr<Node>& rootNode
-    );
-    virtual void processFileNode(const std::shared_ptr<Node>& childNode);
-    virtual void displayContextMenu(const std::shared_ptr<Node>& node) {};
-    virtual void openLeafNode(
-        const std::shared_ptr<Node>& node,
-        bool inSeparateWindow = false
-    ) {};
+    virtual void populateTree();
+    virtual void processFileNode(const std::shared_ptr<TreeNodeBase>& childNode);
+    virtual void displayContextMenu(const std::shared_ptr<TreeNodeBase>& node) {};
+    virtual void openLeafNode(const std::shared_ptr<TreeNodeBase>& node) {};
 
-    inline const std::shared_ptr<Node>& getRoot() { return root; }
-    inline const std::filesystem::path& getPath() { return path; }
+    inline const std::shared_ptr<TreeNodeBase>& getRoot() { return root; }
+
+protected:
+    PIDStudio* app;
+
 private:
     efsw::FileWatcher fileWatcher;
-    bool requiresRebuilding;
-    std::shared_ptr<Node> root;
+    bool requiresRebuilding = true;
+    std::shared_ptr<TreeNodeBase> root;
     std::filesystem::path path;
 };
-
-#include "FilesystemWatcher.tpp"

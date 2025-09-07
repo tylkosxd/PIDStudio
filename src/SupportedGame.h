@@ -11,7 +11,7 @@ public:
 	SupportedGame(PIDStudio* app, const char* name, const char* iniKey, const char* exeName)
 		: app(app), name(name), iniKey(iniKey), exeName(exeName) {};
 
-	virtual void initializeLibrary(const std::shared_ptr<AssetLibraryTreeNode>& root);
+	virtual void initializeLibrary(const std::shared_ptr<TreeNodeBase>& root);
 
 	[[nodiscard]] const char* getName() const { return name; }
 	[[nodiscard]] const char* getIniKey() const { return iniKey; }

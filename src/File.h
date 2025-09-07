@@ -18,6 +18,7 @@ std::ostream& operator<(std::ostream& ofs, const T& data) {
 class File {
 public:
     virtual bool loadFromFile(const std::filesystem::path& path);
+    virtual bool loadFromFilePartially(const std::filesystem::path& path, std::streamoff off, std::ios_base::seekdir dir);
     virtual bool loadFromStream(std::istream& stream);
     virtual bool saveToFile(const std::filesystem::path& path);
     virtual bool saveToStream(std::ostream& stream);

@@ -1,8 +1,5 @@
 #pragma once
 
-#include "AssetLibrary.h"
-#include "Project.h"
-
 #include <imgui.h>
 #include <SFML/Graphics/RenderWindow.hpp>
 
@@ -10,149 +7,176 @@
 #include <mini/ini.h>
 
 #include <set>
-#include <map>
-#include <unordered_map>
+#include <filesystem>
 
+class AssetLibrary;
+class Project;
 class PIDFile;
+class PCXFile;
+class BMPFile;
 class PIDPalette;
 class SupportedGame;
+struct TreeNodeBase;
+
+const char APPLICATION_NAME[] = "PIDStudio";
+const char SETTINGS_INI_FILENAME[] = "PIDStudio.ini";
+const char ASSET_LIBRARIES_INI_KEY[] = "AssetLibraries";
+const char RECENT_FILES_INI_KEY[] = "RecentFiles";
+const char LAST_PROJECT_INI_KEY[] = "LastProject";
+const std::filesystem::path PROJECT_INI_FOLDER = ".pidstudio";
+const std::filesystem::path PROJECT_INI_FILENAME = "project.ini";
+const std::filesystem::path PROJECT_PAL_FILENAME = "project.pal";
+
+enum ADD_IMAGES_OPTION {
+	ADD_TO_IMAGES,
+	ADD_TO_LEVEL,
+	ADD_TILES_ACTION,
+	ADD_TILES_BACK,
+	ADD_TILES_FRONT,
+	NONE
+};
 
 class PIDStudio {
-	enum OPENED_FILE_WINDOW_RESULT {
-		NONE,
-		CLOSE,
-		KEEP_OPEN
-	};
 public:
 	PIDStudio();
 	~PIDStudio();
 
 	int run();
-	void openLibraryFile(
-        const std::shared_ptr<AssetLibrary>& library,
-        const std::shared_ptr<AssetLibraryTreeNode>& node,
-        bool inSeparateWindow = false
-    );
-	void keepLibraryFileOpened();
-	std::shared_ptr<PIDFile> openLibraryFileinBackground(
-		const std::shared_ptr<AssetLibrary>& library,
-		const std::shared_ptr<AssetLibraryTreeNode>& node
-	);
-	void libraryEntryContextMenu(
-        const std::shared_ptr<AssetLibrary>& library,
-        const std::shared_ptr<AssetLibraryTreeNode>& node,
-        bool isLeaf,
-        bool isRoot
-    );
-	std::shared_ptr<PIDPalette> getDefaultPalette() { return defaultPalette; }
+
+	void pinOpenedFile();
+
+	void openBatchCreator(const std::filesystem::path& path);
+
+	void openPaletteManager();
 
 	void mapPalette(
-		std::filesystem::path,
-		std::string libraryName,
-		std::shared_ptr<PIDPalette>&,
+		const std::filesystem::path&,
+		const std::string& libraryName,
+		const std::shared_ptr<PIDPalette>&,
 		bool isLoadedFromFile = false
 	);
 
-private:
+	std::shared_ptr<PIDPalette> getPalette(const std::string& name);
+
+	void addImagesToProject(
+		const std::filesystem::path& pathIn,
+		const std::shared_ptr<PIDPalette>& paletteIn,
+		ADD_IMAGES_OPTION addOption
+	);
+
+	void closeFile(const std::shared_ptr<PIDFile>& file);
+
+	void closeAllFiles();
+
+	void openedFilesWindows();
+
+	void openedFileWindow(const std::shared_ptr<PIDFile>& file);
+
+	bool isFileAlreadyOpen(const std::filesystem::path& path, PIDFile** outFilePtr = nullptr);
+
+	void openImageFileDialog();
+
+	void openImageFile(
+		const std::filesystem::path&,
+		std::shared_ptr<PIDPalette> palette = nullptr,
+		bool inBackground = false
+	);
+
+	void openAllImageFiles(const std::filesystem::path& path, const std::shared_ptr<PIDPalette>& palette);
+
+	void saveToRecentlyOpened(const std::filesystem::path& path);
+
+	void addLibrary();
+
+	void createProject(
+		const char* name,
+		std::filesystem::path& path,
+		std::shared_ptr<PIDPalette>& palette
+	);
+
+	void openProject(const std::filesystem::path& path);
+
+	void pasteFileFromClipboard(const std::filesystem::path& dstPath);
+
+	void importPNGs(const std::filesystem::path& outPath);
+
+	bool loadPaletteFromFile();
+
+	void savePaletteToFile();
+
+	void saveCurrentFileAs();
+
+	void saveLibraryFileAs(
+		const std::shared_ptr<AssetLibrary>& library,
+		const std::shared_ptr<TreeNodeBase>& node,
+		const char* format,
+		bool compression = false
+	);
+
+	void saveAllFilesAs(
+		const std::filesystem::path& path,
+		const std::shared_ptr<PIDPalette>& palette,
+		const char* format
+	);
+
+	void saveOpenedFile(std::shared_ptr<PIDFile>& file);
+
+	void saveAllOpenedFiles();
+
+	std::string shortenFilePath(const std::filesystem::path& path);
+
+public:
+
+	// a pair of a path to a file and a bool that's true when the file has been cut, not copied
+	std::pair<std::filesystem::path, bool> fileClipboard;
+
+	// used for palette transformation of the PID files:
+	std::shared_ptr<PIDPalette> lastInPalette;
+	std::shared_ptr<PIDPalette> lastOutPalette;
+	uint8_t lastColorTable[256];
+
 	std::vector<std::shared_ptr<SupportedGame>> supportedGames;
 	std::shared_ptr<SupportedGame> claw;
+	std::shared_ptr<SupportedGame> getMedieval;
+	std::shared_ptr<SupportedGame> gruntz;
 
 	mINI::INIStructure settings;
 	sf::RenderWindow mainWindow;
 	std::vector<std::shared_ptr<AssetLibrary>> assetLibraries;
-	std::vector<std::shared_ptr<Project>> projects;
+	std::shared_ptr<AssetLibrary> libraryToClose;
 
 	std::vector<std::shared_ptr<PIDFile>> openedFiles;
-	std::shared_ptr<PIDFile> openedLibraryFile;
+	std::shared_ptr<PIDFile> openedFile;
 	std::shared_ptr<PIDFile> currentFile;
+	std::shared_ptr<PIDFile> currentBackgroundFile;
 	std::set<std::shared_ptr<PIDFile>> filesToClose;
-    std::shared_ptr<AssetLibrary> libraryToClose;
 
 	std::shared_ptr<PIDPalette> currentPalette;
 	std::shared_ptr<PIDPalette> defaultPalette;
-	std::string defaultPaletteName;
-	std::shared_ptr<PIDPalette> toTransformPalette;
 
-	std::map<std::string, std::shared_ptr<PIDPalette>> libPalettes; /* Palettes from the library */
-	std::unordered_map<std::string, bool> libPalettesComboS; /* States of Select palette combo box */
-	std::unordered_map<std::string, bool> libPalettesComboT; /* States of Transform palette combo box */
-	std::map<std::string, std::shared_ptr<PIDPalette>> customPalettes; /* Palettes loaded from file*/
-	std::unordered_map<std::string, bool> customPalettesComboS; /* States of Select palette combo box */
-	std::unordered_map<std::string, bool> customPalettesComboT; /* States of Transform palette combo box */
-	bool ownPaletteComboS;
-	bool ownPaletteComboT;
+	std::vector<std::shared_ptr<PIDPalette>> libPalettes; /* Palettes from the library */
+	std::vector<std::shared_ptr<PIDPalette>> customPalettes; /* Other palettes */
 
+	std::shared_ptr<Project> currentProject;
+	std::vector<std::shared_ptr<Project>> projects;
+	std::shared_ptr<Project> projectToClose;
+
+	ImGuiID dockspaceId{};
+
+	struct {
+		std::filesystem::path path;
+		std::string name;
+		ImVec2 pos = {0, 0};
+		ImVec2 size = {0, 0};
+	} lastOpenedTreeNode;
+
+	bool contextMenuOpened = false;
+
+	bool keepAllFilesOpen = false;
+
+	ADD_IMAGES_OPTION addImagesOption = NONE;
+
+private:
 	PIDFile* bringFocusTo = nullptr;
 
-	ImGuiID dockspaceId{},
-			dockspaceIdLeft{},
-			dockspaceIdRight{},
-			dockspaceIdRightTop{},
-			dockspaceIdRightBottom{};
-
-	void menuBar();
-	void toolBar();
-	void preDockedWindows();
-
-	std::string resetPaletteComboSelect();
-	void paletteComboSelect();
-	void resetPaletteComboTransform();
-	void paletteComboTransform();
-
-	void paletteWindow();
-	void offsetsWindow();
-	void metadataWindow();
-	void flagsWindow();
-	void libraryWindow();
-    void projectsWindow();
-
-	void closeContextMenu();
-
-	void openedFilesWindows();
-	OPENED_FILE_WINDOW_RESULT openedFileWindow(const std::shared_ptr<PIDFile>& file);
-
-	void saveToRecentlyOpened(std::string path);
-	void recentlyOpenedContextMenu();
-
-	void closeFile(const std::shared_ptr<PIDFile>& file);
-	void closeAllFiles();
-
-	void openPidFileDialog();
-	void addLibraryDialog();
-	void addLibrary(std::filesystem::path& path, const std::shared_ptr<SupportedGame>& game);
-	bool isFileAlreadyOpen(const std::filesystem::path& path, PIDFile** outFilePtr = nullptr);
-	void forEachInLibraryNode(
-		const std::shared_ptr<AssetLibrary>& library,
-		const std::shared_ptr<AssetLibraryTreeNode>& node,
-		const char* action, /* "open", "saveAs"*/
-		const char* param1 = nullptr, /* file format for "saveAs" action - ".pid" or ".png" */
-		const char* param2 = nullptr, /* folder path for "saveAs" action */
-		bool param3 = false, /* true for compressed PIDs*/
-		size_t basePathLength = 0
-	);
-	void openPidFile(std::string filePath);
-	void loadPaletteFromFile();
-	void savePaletteToFile();
-	void saveCurrentFileAs();
-	void saveNodeFileAs(
-		const std::shared_ptr<AssetLibrary>& library,
-		const std::shared_ptr<AssetLibraryTreeNode>& node,
-		const char* format,
-		bool compression = false
-	);
-	void saveAllFilesAs(
-		const std::shared_ptr<AssetLibrary>& library,
-		const std::shared_ptr<AssetLibraryTreeNode>& selectedNode,
-		const char* format,
-		bool compression = false
-	);
-	void saveOpenedFile(std::shared_ptr<PIDFile>& file);
-	void saveAllOpenedFiles();
-	bool canClickSaveAll();
-	bool checkboxTransparencyFlag;
-	bool checkboxVideoMemoryFlag;
-	bool checkboxSystemMemoryFlag;
-	bool checkboxCompressionFlag;
-	int inputIntOffsetX;
-	int inputIntOffsetY;
 };

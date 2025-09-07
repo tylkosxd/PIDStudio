@@ -1,7 +1,6 @@
 #include "PIDStudio.h"
 
-int main(int argc, char* argv[])
-{
+int main() {
     auto* application = new PIDStudio();
     int result = application->run();
     delete application;

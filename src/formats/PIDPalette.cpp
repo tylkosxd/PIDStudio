@@ -6,6 +6,11 @@ PIDPalette::PIDPalette(const unsigned char* ptr) {
     std::copy(ptr, ptr+sizeof(data), (unsigned char*)data);
 }
 
+bool PIDPalette::loadFromFile(const std::filesystem::path& filepath) {
+    path = filepath;
+    return File::loadFromFile(filepath);
+}
+
 bool PIDPalette::load(std::istream& stream) {
     stream > data;
     return true;
@@ -36,7 +41,22 @@ const sf::Texture& PIDPalette::getTexture() {
 }
 
 sf::Color PIDPalette::getColor(int i, bool treatFirstAsTransparent) const {
+    if (i < 0 || i > 255)
+        return sf::Color::Transparent;
     if (i || !treatFirstAsTransparent)
         return {data[i][0], data[i][1], data[i][2]};
-    else return sf::Color::Transparent;
+    else 
+        return sf::Color::Transparent;
+}
+
+void PIDPalette::setColor(int i, uint8_t r, uint8_t g, uint8_t b) {
+    if (i < 0 || i > 255)
+        return;
+    data[i][0] = r;
+    data[i][1] = g;
+    data[i][2] = b;
+}
+
+void PIDPalette::setName(const std::string& n) {
+    name = n.length() < 128 ? n : n.substr(0, 127);
 }

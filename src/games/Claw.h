@@ -7,6 +7,6 @@ public:
 	Claw(PIDStudio* app, const char* name, const char* iniKey, const char* exeName)
 		: SupportedGame(app, name, iniKey, exeName) {}
 
-	void initializeLibrary(const std::shared_ptr<AssetLibraryTreeNode>& root) override;
-	void initializeStatesPalettes(const std::shared_ptr<AssetLibraryTreeNode>& statesDirectory);
+	void initializeLibrary(const std::shared_ptr<TreeNodeBase>& root) override;
+	void initializeStatesPalettes(const std::shared_ptr<TreeNodeBase>& statesDirectory);
 };

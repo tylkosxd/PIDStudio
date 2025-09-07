@@ -8,8 +8,8 @@ int getNumSuffix(const std::string& s) {
 }
 
 bool sortElements(
-    const std::shared_ptr<AssetLibraryTreeNode>& node1,
-    const std::shared_ptr<AssetLibraryTreeNode>& node2
+    const std::shared_ptr<TreeNodeBase>& node1,
+    const std::shared_ptr<TreeNodeBase>& node2
 ) {
     int numSuffix1 = getNumSuffix(node1->name);
     int numSuffix2 = getNumSuffix(node2->name);
@@ -18,7 +18,7 @@ bool sortElements(
     return (numSuffix1 != 0 && numSuffix2 != 0) ? numSuffix1 < numSuffix2 : node1->name < node2->name;
 }
 
-void SupportedGame::initializeLibrary(const std::shared_ptr<AssetLibraryTreeNode>& root) {
+void SupportedGame::initializeLibrary(const std::shared_ptr<TreeNodeBase>& root) {
     root->name = gettext(name);
     std::sort(root->children.begin(), root->children.end(), sortElements);
 }

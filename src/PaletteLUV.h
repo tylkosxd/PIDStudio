@@ -8,11 +8,11 @@ const double xyzMatrix[3][3] = {
     {0.0193339, 0.1191920, 0.9503041}
 };
 
-typedef struct colorLUV {
+struct colorLUV {
     double L;
     double U;
     double V;
-} colorLUV;
+};
 
 const double Xn = 0.950489;
 const double Yn = 1.0;
@@ -24,9 +24,10 @@ const double kappa = 903.3;
 class PaletteLUV {
     public:
         PaletteLUV(unsigned char* rgbPaletteData);
-        int getMostSimilarColor(int index, std::shared_ptr<PaletteLUV> otherPal);
+        int getMostSimilarColor(int index, const std::unique_ptr<PaletteLUV>& otherPal);
+        uint8_t getMostSimilarColor(uint8_t red, uint8_t green, uint8_t blue);
 
     private:
         colorLUV getColor(int index);
-        double data[256][3];
+        colorLUV data[256];
 };

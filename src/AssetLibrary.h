@@ -7,37 +7,27 @@
 class PIDPalette;
 class SupportedGame;
 
-struct AssetLibraryTreeNode : public TreeNodeBase<AssetLibraryTreeNode> {
-    std::shared_ptr<PIDPalette> palette;
-};
-
-class AssetLibrary : public FilesystemWatcher<AssetLibraryTreeNode>, public std::enable_shared_from_this<AssetLibrary>
-{
+class AssetLibrary : public FilesystemWatcher, public std::enable_shared_from_this<AssetLibrary> {
 public:
-    typedef void (*FileHandler)(const std::shared_ptr<AssetLibraryTreeNode>&);
+    typedef void (*FileHandler)(const std::shared_ptr<TreeNodeBase>&);
 
     AssetLibrary(class PIDStudio* app, const std::filesystem::path& path, const std::shared_ptr<SupportedGame>& game);
 
     [[nodiscard]] const char* getIniKey() const;
 
-    bool hasFilepath(const std::filesystem::path& filepath, std::shared_ptr<AssetLibraryTreeNode>& outFoundNode);
+    bool hasFilepath(const std::filesystem::path& filepath, std::shared_ptr<TreeNodeBase>& outFoundNode);
 
-    static std::shared_ptr<PIDPalette> inferPalette(const std::shared_ptr<AssetLibraryTreeNode>& node);
+    static std::shared_ptr<PIDPalette> inferPalette(const std::shared_ptr<TreeNodeBase>& node);
 
     bool isFileTypeSupported(std::string extension);
 
-    std::filesystem::path getPath() const { return getRootPath(); }
 private:
     static std::unordered_map<std::string, FileHandler> supportedFileTypes;
-
-    class PIDStudio* app;
     std::shared_ptr<SupportedGame> game;
 
-    void populateTree(const std::filesystem::path& path, const std::shared_ptr<AssetLibraryTreeNode>& node) override;
-    void processFileNode(const std::shared_ptr<AssetLibraryTreeNode>& childNode) override;
-    void displayContextMenu(const std::shared_ptr<AssetLibraryTreeNode> &node) override;
-    void openLeafNode(
-        const std::shared_ptr<AssetLibraryTreeNode> &node,
-        bool inSeparateWindow = false
-    ) override;
+private:
+    void populateTree() override;
+    void processFileNode(const std::shared_ptr<TreeNodeBase>& childNode) override;
+    void displayContextMenu(const std::shared_ptr<TreeNodeBase> &node) override;
+    void openLeafNode(const std::shared_ptr<TreeNodeBase> &node) override;
 };
